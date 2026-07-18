@@ -1,1410 +1,1037 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Sprout & Sell VR</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: Inter, ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #8fd8ff;
-      color: white;
-    }
-    canvas { display: block; }
-    #hud {
-      position: fixed;
-      top: 14px;
-      left: 14px;
-      z-index: 5;
-      width: min(330px, calc(100vw - 28px));
-      padding: 14px;
-      border: 2px solid rgba(255,255,255,.55);
-      border-radius: 18px;
-      background: rgba(20, 44, 30, .78);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 12px 40px rgba(0,0,0,.25);
-      pointer-events: none;
-    }
-    #title {
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: .3px;
-      margin-bottom: 7px;
-    }
-    #stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 5px 12px;
-      font-weight: 700;
-      font-size: 14px;
-    }
-    #objective {
-      margin-top: 10px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.12);
-      font-size: 13px;
-      line-height: 1.35;
-    }
-    #toast {
-      position: fixed;
-      left: 50%;
-      bottom: 85px;
-      z-index: 9;
-      transform: translateX(-50%) translateY(20px);
-      max-width: min(520px, 86vw);
-      padding: 12px 18px;
-      border-radius: 999px;
-      background: rgba(15, 25, 20, .88);
-      border: 2px solid rgba(255,255,255,.45);
-      color: white;
-      font-weight: 800;
-      text-align: center;
-      opacity: 0;
-      transition: .2s ease;
-      pointer-events: none;
-    }
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-    #crosshair {
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      width: 14px;
-      height: 14px;
-      margin: -7px 0 0 -7px;
-      z-index: 4;
-      pointer-events: none;
-    }
-    #crosshair::before, #crosshair::after {
-      content: "";
-      position: absolute;
-      background: rgba(255,255,255,.95);
-      box-shadow: 0 1px 4px rgba(0,0,0,.7);
-    }
-    #crosshair::before { width: 14px; height: 2px; top: 6px; }
-    #crosshair::after { width: 2px; height: 14px; left: 6px; }
-    #startScreen {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at 50% 25%, rgba(255,255,255,.32), transparent 32%),
-        linear-gradient(#78cbff, #bfefff 52%, #7ccb75 53%, #4d9f50);
-      padding: 24px;
-    }
-    #startCard {
-      width: min(620px, 96vw);
-      padding: 28px;
-      border-radius: 28px;
-      background: rgba(22, 55, 33, .87);
-      border: 3px solid rgba(255,255,255,.75);
-      box-shadow: 0 24px 70px rgba(0,0,0,.32);
-      text-align: center;
-    }
-    #startCard h1 {
-      margin: 0;
-      font-size: clamp(34px, 8vw, 64px);
-      line-height: .95;
-    }
-    #startCard p {
-      margin: 14px auto 20px;
-      max-width: 500px;
-      line-height: 1.5;
-      color: #eaffef;
-    }
-    .controls {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin: 18px 0;
-      text-align: left;
-      font-size: 14px;
-    }
-    .controls div {
-      padding: 11px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.1);
-    }
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 13px 22px;
-      font: inherit;
-      font-weight: 900;
-      cursor: pointer;
-      color: #17331f;
-      background: #ffe67c;
-      box-shadow: 0 7px 0 #c29b2d;
-      margin: 5px;
-    }
-    button:active {
-      transform: translateY(4px);
-      box-shadow: 0 3px 0 #c29b2d;
-    }
-    #resetButton {
-      position: fixed;
-      right: 14px;
-      top: 14px;
-      z-index: 6;
-      padding: 9px 14px;
-      font-size: 12px;
-      pointer-events: auto;
-    }
-    #vrPanel {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 16px;
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.3);
-    }
-    #vrStatus {
-      min-height: 38px;
-      margin: 4px 0 8px;
-      color: #eaffef;
-      font-size: 13px;
-      line-height: 1.35;
-    }
-    #vrStartButton {
-      color: #102b1a;
-      background: #8fffb1;
-      box-shadow: 0 7px 0 #3a9d5a;
-    }
-    #vrStartButton:disabled {
-      cursor: not-allowed;
-      opacity: .58;
-      filter: grayscale(.35);
-      box-shadow: 0 4px 0 #53695a;
-    }
-    #openTabButton {
-      color: white;
-      background: rgba(255,255,255,.16);
-      box-shadow: 0 7px 0 rgba(0,0,0,.25);
-    }
-    #mobileHelp {
-      display: none;
-      position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 6;
-      background: rgba(0,0,0,.55);
-      padding: 9px 14px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 12px;
-    }
-    @media (max-width: 700px) {
-      .controls { grid-template-columns: 1fr; }
-      #hud { font-size: 12px; }
-      #mobileHelp { display: block; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090914">
+<title>CURSE//ASCENT VR</title>
+<style>
+  :root{
+    --ink:#f5f7ff;--muted:#aeb4d0;--panel:rgba(12,13,28,.86);
+    --line:rgba(162,174,255,.24);--violet:#8d63ff;--cyan:#48e8ff;
+    --red:#ff476f;--gold:#ffd66b;--green:#5effa1;
+  }
+  *{box-sizing:border-box}
+  html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#05050c;color:var(--ink);
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  canvas{display:block}
+  button{font:inherit}
+  #game{position:fixed;inset:0}
+  .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(circle at 50% 20%,rgba(97,56,255,.25),transparent 32%),
+      linear-gradient(180deg,rgba(3,3,11,.45),rgba(3,3,10,.9));
+    backdrop-filter:blur(5px);z-index:20}
+  .hidden{display:none!important}
+  .card{width:min(940px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto;
+    border:1px solid var(--line);background:linear-gradient(145deg,rgba(17,18,38,.94),rgba(7,8,20,.94));
+    box-shadow:0 22px 80px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);
+    border-radius:24px;padding:24px}
+  .eyebrow{letter-spacing:.25em;text-transform:uppercase;font-size:12px;color:var(--cyan);font-weight:800}
+  h1{font-size:clamp(38px,7vw,84px);line-height:.9;margin:10px 0 12px;letter-spacing:-.055em}
+  h1 span{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.55)}
+  .sub{color:var(--muted);max-width:720px;line-height:1.55;margin:0 0 22px}
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+  .panel{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:18px;padding:18px}
+  .tech-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  #techName{font-size:28px;font-weight:900}
+  #rarity{padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.08);font-weight:900;font-size:12px}
+  #techDescription{color:var(--muted);min-height:48px}
+  .move-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .move{padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18);
+    font-size:13px;color:#dfe4ff}
+  .buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:1px solid rgba(255,255,255,.16);color:white;background:rgba(255,255,255,.07);
+    border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;transition:.15s transform,.15s background}
+  .btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.12)}
+  .btn.primary{background:linear-gradient(135deg,var(--violet),#5935dd);border-color:transparent}
+  .btn.cyan{background:linear-gradient(135deg,#10bcd0,#1979e8);border-color:transparent}
+  .btn.danger{background:rgba(255,71,111,.14);border-color:rgba(255,71,111,.4)}
+  .control-list{display:grid;grid-template-columns:auto 1fr;gap:9px 12px;margin-top:12px;font-size:13px}
+  kbd{background:#080914;border:1px solid rgba(255,255,255,.18);padding:4px 7px;border-radius:7px;
+    box-shadow:inset 0 -2px rgba(255,255,255,.05);font-weight:800}
+  .notice{margin-top:12px;padding:11px 12px;border-left:3px solid var(--cyan);background:rgba(72,232,255,.07);
+    color:#cdeaff;font-size:12px;line-height:1.45}
+  #hud{position:fixed;inset:0;z-index:5;pointer-events:none}
+  #topbar{position:absolute;left:18px;right:18px;top:16px;display:flex;justify-content:space-between;gap:12px}
+  .glass{background:rgba(8,9,20,.72);border:1px solid var(--line);backdrop-filter:blur(10px);
+    box-shadow:0 10px 30px rgba(0,0,0,.25);border-radius:14px}
+  #stats{padding:10px 12px;display:flex;gap:14px;align-items:center;font-size:12px;font-weight:800}
+  #questBox{padding:10px 13px;max-width:340px;font-size:12px}
+  #questTitle{font-weight:900;color:var(--gold)}
+  #questText{color:#d9def4;margin-top:3px}
+  #bars{position:absolute;left:18px;bottom:20px;width:min(430px,calc(100vw - 36px))}
+  .barrow{display:grid;grid-template-columns:74px 1fr 62px;gap:8px;align-items:center;margin-top:6px;font-size:11px;font-weight:900}
+  .bar{height:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;overflow:hidden}
+  .fill{height:100%;width:50%;transition:width .18s}
+  #hpFill{background:linear-gradient(90deg,#f23b64,#ff738f)}
+  #ceFill{background:linear-gradient(90deg,#3b78ff,#54e7ff)}
+  #awFill{background:linear-gradient(90deg,#933dff,#ff5edc)}
+  #moves{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+    display:flex;gap:8px;max-width:calc(100vw - 44px)}
+  .slot{width:112px;min-height:64px;padding:8px;border-radius:12px;background:rgba(8,9,20,.75);
+    border:1px solid var(--line);backdrop-filter:blur(8px);position:relative}
+  .slot.active{border-color:var(--cyan);box-shadow:0 0 22px rgba(72,232,255,.28)}
+  .slot .key{font-size:11px;color:var(--cyan);font-weight:900}.slot .name{font-size:12px;font-weight:900;margin-top:3px}
+  .slot .cd{position:absolute;inset:0;border-radius:11px;background:rgba(2,3,9,.72);
+    display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900}
+  #crosshair{position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%)}
+  #crosshair:before,#crosshair:after{content:"";position:absolute;background:rgba(255,255,255,.9);
+    box-shadow:0 0 6px rgba(72,232,255,.8)}
+  #crosshair:before{width:18px;height:2px;top:8px}#crosshair:after{width:2px;height:18px;left:8px}
+  #prompt{position:absolute;left:50%;top:61%;transform:translateX(-50%);padding:8px 12px;
+    font-size:12px;font-weight:900;opacity:0;transition:opacity .2s}
+  #toast{position:absolute;left:50%;top:100px;transform:translateX(-50%) translateY(-18px);
+    opacity:0;padding:10px 16px;font-weight:900;transition:.25s;white-space:nowrap}
+  #damageFlash{position:absolute;inset:0;background:radial-gradient(circle,transparent 35%,rgba(255,20,68,.5));
+    opacity:0;transition:opacity .1s}
+  #vrButtonMount{position:fixed;right:18px;bottom:18px;z-index:30}
+  #vrButtonMount button{position:static!important;margin:0!important;left:auto!important;right:auto!important;
+    bottom:auto!important;border-radius:14px!important;font-weight:900!important}
+  #desktopTip{position:fixed;right:18px;bottom:76px;z-index:6;padding:8px 11px;font-size:11px;color:#d5dcff}
+  #bossBanner{position:absolute;left:50%;top:25%;transform:translate(-50%,-50%) scale(.8);opacity:0;
+    text-align:center;text-shadow:0 0 25px rgba(255,56,100,.9);transition:.35s}
+  #bossBanner b{display:block;font-size:clamp(30px,6vw,68px);letter-spacing:.08em}
+  #bossBanner span{color:#ffb0c0;font-weight:900;letter-spacing:.2em}
+  #pause .card{width:min(520px,calc(100vw - 28px))}
+  #death .card{width:min(540px,calc(100vw - 28px));text-align:center}
+  @media(max-width:760px){
+    .grid{grid-template-columns:1fr}.move-list{grid-template-columns:1fr}
+    #moves{left:12px;right:12px;transform:none;overflow-x:auto;justify-content:flex-start}
+    .slot{min-width:104px}#topbar{align-items:flex-start;flex-direction:column}
+  }
+</style>
 </head>
 <body>
-  <div id="startScreen">
-    <div id="startCard">
-      <h1>SPROUT<br>&amp; SELL VR</h1>
-      <p>Run a tiny garden business: buy seeds, plant them, keep them watered, watch them grow, harvest the crops, and dump your haul into the sell crate.</p>
-      <div class="controls">
-        <div><b>Desktop</b><br>WASD move · click game for mouse look · right-drag also looks · click or E interact · 1/2/3 choose seed</div>
-        <div><b>VR</b><br>Left stick move · right stick turn · point and trigger to interact</div>
-      </div>
-      <button id="playButton">Play on Desktop</button>
-      <div id="vrPanel">
-        <button id="vrStartButton" disabled>Checking VR…</button>
-        <button id="openTabButton">Open Game in New Tab</button>
-        <div id="vrStatus">Checking whether this page is allowed to start immersive VR…</div>
-      </div>
-      <p style="font-size:12px;margin-bottom:0;opacity:.8">VR must be opened from an HTTPS website or localhost, not a downloaded file or a blocked embedded preview.</p>
-    </div>
-  </div>
+<div id="game"></div>
 
-  <div id="hud">
-    <div id="title">🌱 Sprout &amp; Sell</div>
-    <div id="stats">
-      <div>Coins: <span id="coins">20</span></div>
-      <div>Selected: <span id="selected">Carrot</span></div>
-      <div>Seeds: <span id="seeds">0 / 0 / 0</span></div>
-      <div>Produce: <span id="produce">0 / 0 / 0</span></div>
+<div id="menu" class="screen">
+  <div class="card">
+    <div class="eyebrow">Single-file desktop + WebXR action RPG</div>
+    <h1>CURSE//<span>ASCENT</span> VR</h1>
+    <p class="sub">An original browser RPG inspired by technique-grinding sorcerer games. Draw a cursed technique, take missions, gain mastery, rank up, awaken, and throw hands in full VR.</p>
+    <div class="grid">
+      <section class="panel">
+        <div class="tech-title">
+          <div>
+            <div class="eyebrow">Innate technique</div>
+            <div id="techName">Vector Limit</div>
+          </div>
+          <div id="rarity">SPECIAL</div>
+        </div>
+        <p id="techDescription"></p>
+        <div id="menuMoves" class="move-list"></div>
+        <div class="buttons">
+          <button id="rollBtn" class="btn cyan">DRAW TECHNIQUE · <span id="spinsText">8</span> SPINS</button>
+          <button id="startBtn" class="btn primary">ENTER THE CITY</button>
+        </div>
+        <div class="notice">No Robux, payments, or real-money mechanics. Spins are earned only by playing. Your progress saves in this browser.</div>
+      </section>
+      <aside class="panel">
+        <div class="eyebrow">Desktop</div>
+        <div class="control-list">
+          <kbd>WASD</kbd><span>Move</span><kbd>Mouse</kbd><span>Look</span>
+          <kbd>LMB</kbd><span>Melee combo</span><kbd>1–4</kbd><span>Technique moves</span>
+          <kbd>Q</kbd><span>Dash</span><kbd>F</kbd><span>Block</span>
+          <kbd>R</kbd><span>Charge cursed energy</span><kbd>G</kbd><span>Awaken / Domain</span>
+          <kbd>E</kbd><span>Interact</span><kbd>K</kbd><span>Technique screen</span>
+        </div>
+        <div class="eyebrow" style="margin-top:18px">VR</div>
+        <div class="control-list">
+          <kbd>Left stick</kbd><span>Move</span><kbd>Right stick</kbd><span>Snap turn</span>
+          <kbd>Left trigger</kbd><span>Punch</span><kbd>Right trigger</kbd><span>Selected move</span>
+          <kbd>A</kbd><span>Cycle move</span><kbd>B</kbd><span>Awaken</span>
+          <kbd>X</kbd><span>Dash</span><kbd>Y</kbd><span>Interact</span>
+          <kbd>Grip</kbd><span>Block</span>
+        </div>
+        <div class="notice">WebXR needs HTTPS. GitHub Pages already uses HTTPS. Open the Pages link in Quest Browser, then press <b>ENTER VR</b>.</div>
+      </aside>
     </div>
-    <div id="objective">Walk to the seed stall and buy your first packet.</div>
   </div>
-  <button id="resetButton" title="Reset saved coins and inventory">Reset Save</button>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="card">
+    <div class="eyebrow">Paused</div>
+    <h2 style="font-size:40px;margin:8px 0">Breathing room.</h2>
+    <p class="sub">The curses have been politely frozen in time.</p>
+    <div class="buttons">
+      <button id="resumeBtn" class="btn primary">RESUME</button>
+      <button id="menuBtn" class="btn">MAIN MENU</button>
+      <button id="resetBtn" class="btn danger">RESET SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div id="death" class="screen hidden">
+  <div class="card">
+    <div class="eyebrow">Mission failed</div>
+    <h2 style="font-size:52px;margin:8px 0">YOU GOT FOLDED</h2>
+    <p class="sub" style="margin-inline:auto">Your grade and technique survive. Your dignity respawns nearby.</p>
+    <button id="respawnBtn" class="btn primary">RESPAWN</button>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="damageFlash"></div>
+  <div id="topbar">
+    <div id="stats" class="glass">
+      <span id="levelStat">LV. 1</span><span id="gradeStat">NON-SORCERER</span>
+      <span id="coinStat">¥ 0</span><span id="masteryStat">MASTERY 1</span>
+    </div>
+    <div id="questBox" class="glass">
+      <div id="questTitle">NO ACTIVE MISSION</div><div id="questText">Find the glowing mission broker.</div>
+    </div>
+  </div>
+  <div id="bossBanner"><span>SPECIAL GRADE DETECTED</span><b>THE HOLLOW ONE</b></div>
   <div id="crosshair"></div>
-  <div id="toast"></div>
-  <div id="mobileHelp">Tap objects to interact</div><div id="desktopHint" style="position:fixed;right:14px;bottom:14px;z-index:6;background:rgba(0,0,0,.55);padding:9px 14px;border-radius:999px;font-weight:700;font-size:12px;">Click game for mouse look · Right-drag fallback · Arrow keys also turn</div>
+  <div id="prompt" class="glass">E · ACCEPT MISSION</div>
+  <div id="toast" class="glass">Technique ready</div>
+  <div id="bars">
+    <div class="barrow"><span>HEALTH</span><div class="bar"><div id="hpFill" class="fill"></div></div><span id="hpText">100/100</span></div>
+    <div class="barrow"><span>CURSE</span><div class="bar"><div id="ceFill" class="fill"></div></div><span id="ceText">100/100</span></div>
+    <div class="barrow"><span>AWAKEN</span><div class="bar"><div id="awFill" class="fill"></div></div><span id="awText">0%</span></div>
+  </div>
+  <div id="moves"></div>
+</div>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+<div id="desktopTip" class="glass hidden">Click the game to lock your mouse · Esc pauses</div>
+<div id="vrButtonMount"></div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/VRButton.js';
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp = (a,b,t)=>a+(b-a)*t;
+const rand = (a,b)=>a+Math.random()*(b-a);
+const TAU = Math.PI*2;
+
+const TECHNIQUES = {
+  "Vector Limit":{
+    rarity:"SPECIAL", color:0x58d8ff, description:"Bend distance into attraction, repulsion, and a crushing singularity.",
+    moves:[
+      {name:"Azure Pull",cost:18,cd:5,damage:20,range:18,type:"pull"},
+      {name:"Crimson Burst",cost:24,cd:7,damage:30,range:15,type:"blast"},
+      {name:"Neutral Guard",cost:16,cd:11,damage:0,range:0,type:"guard"},
+      {name:"Violet Collapse",cost:52,cd:17,damage:64,range:30,type:"beam"}
+    ],
+    awakening:"Infinite Horizon"
+  },
+  "Cleave Mark":{
+    rarity:"LEGENDARY", color:0xff536f, description:"Carve invisible fault lines through curses and mark targets for execution.",
+    moves:[
+      {name:"Rend",cost:12,cd:3,damage:18,range:16,type:"slash"},
+      {name:"Crosscut",cost:20,cd:6,damage:30,range:18,type:"cross"},
+      {name:"Furnace Spark",cost:30,cd:9,damage:42,range:20,type:"fire"},
+      {name:"Shrine Field",cost:55,cd:19,damage:70,range:22,type:"domain"}
+    ],
+    awakening:"Calamity Vessel"
+  },
+  "Bloodwire":{
+    rarity:"RARE", color:0xc7224b, description:"Shape cursed blood into piercing lines, traps, and high-pressure bursts.",
+    moves:[
+      {name:"Piercing Thread",cost:14,cd:4,damage:20,range:22,type:"beam"},
+      {name:"Crimson Snare",cost:18,cd:7,damage:15,range:15,type:"snare"},
+      {name:"Flowing Scale",cost:22,cd:12,damage:0,range:0,type:"buff"},
+      {name:"Meteoric Blood",cost:42,cd:15,damage:56,range:24,type:"rain"}
+    ],
+    awakening:"Scarlet Overdrive"
+  },
+  "Ember Caldera":{
+    rarity:"RARE", color:0xff7a32, description:"Build heat with every hit, then crack the street open with volcanic force.",
+    moves:[
+      {name:"Cinder Shot",cost:12,cd:3,damage:18,range:20,type:"fire"},
+      {name:"Magma Uppercut",cost:18,cd:6,damage:28,range:6,type:"uppercut"},
+      {name:"Ash Cyclone",cost:25,cd:8,damage:34,range:12,type:"spin"},
+      {name:"Caldera",cost:48,cd:17,damage:65,range:18,type:"domain"}
+    ],
+    awakening:"Volcanic Crown"
+  },
+  "Boogie Shift":{
+    rarity:"UNCOMMON", color:0xb66cff, description:"Swap positions, scramble enemies, and turn a clap into a tactical disaster.",
+    moves:[
+      {name:"Impact Clap",cost:10,cd:3,damage:16,range:7,type:"blast"},
+      {name:"False Swap",cost:14,cd:5,damage:22,range:16,type:"swap"},
+      {name:"Rhythm Rush",cost:20,cd:8,damage:35,range:10,type:"rush"},
+      {name:"Grand Applause",cost:38,cd:14,damage:50,range:20,type:"chaos"}
+    ],
+    awakening:"Perfect Tempo"
+  },
+  "Shadow Menagerie":{
+    rarity:"LEGENDARY", color:0x776bff, description:"Command liquid shadows, spectral beasts, and a dangerous unfinished ritual.",
+    moves:[
+      {name:"Hound Pounce",cost:14,cd:4,damage:20,range:18,type:"hound"},
+      {name:"Wing Shock",cost:18,cd:6,damage:26,range:16,type:"blast"},
+      {name:"Shadow Well",cost:24,cd:9,damage:36,range:14,type:"snare"},
+      {name:"Chimera Garden",cost:50,cd:18,damage:66,range:20,type:"domain"}
+    ],
+    awakening:"Untamed Ritual"
+  }
+};
+const TECH_WEIGHTS = [
+  ["Boogie Shift",36],["Ember Caldera",25],["Bloodwire",20],
+  ["Cleave Mark",9],["Shadow Menagerie",7],["Vector Limit",3]
+];
+
+const DEFAULT_SAVE = {
+  technique:"Boogie Shift", spins:8, level:1, xp:0, coins:0, mastery:1, masteryXp:0,
+  grade:"NON-SORCERER", missions:0, bestCombo:0
+};
+let save = loadSave();
+function loadSave(){
+  try{return {...DEFAULT_SAVE,...JSON.parse(localStorage.getItem("curseAscentSave")||"{}")}}
+  catch{return {...DEFAULT_SAVE}}
+}
+function persist(){ localStorage.setItem("curseAscentSave",JSON.stringify(save)); }
+function weightedTechnique(){
+  let roll=Math.random()*TECH_WEIGHTS.reduce((s,x)=>s+x[1],0);
+  for(const [name,w] of TECH_WEIGHTS){roll-=w;if(roll<=0)return name}
+  return "Boogie Shift";
+}
+
+let scene, renderer, camera, playerRig, clock, worldRoot, enemyRoot, effectRoot;
+let controller0,controller1,grip0,grip1,desktopHands,vrHud,vrHudCtx,vrHudTexture;
+let running=false, paused=false, dead=false, inVR=false, charging=false, blocking=false, awakened=false;
+let yaw=0,pitch=0, selectedMove=0, snapReady=true, combo=0,comboTimer=0, questNpc;
+let keys={},prevButtons=[[],[]], cooldowns=[0,0,0,0], effects=[], enemies=[], obstacles=[];
+let quest={active:false,target:4,kills:0,boss:false};
+let player={
+  hp:100,maxHp:100,ce:100,maxCe:100,aw:0,maxAw:100,speed:6.5,
+  velocity:new THREE.Vector3(),dashCd:0,invuln:0,meleeCd:0,attackChain:0,attackReset:0,
+  buffTimer:0,guardTimer:0
+};
+
+initMenu();
+initThree();
+animate();
+
+function initMenu(){
+  updateTechniqueCard();
+  $("#rollBtn").addEventListener("click",()=>{
+    if(save.spins<=0){toast("Earn spins by completing missions.");return}
+    save.spins--; save.technique=weightedTechnique(); persist(); updateTechniqueCard();
+  });
+  $("#startBtn").addEventListener("click",startGame);
+  $("#resumeBtn").addEventListener("click",togglePause);
+  $("#menuBtn").addEventListener("click",backToMenu);
+  $("#resetBtn").addEventListener("click",()=>{
+    localStorage.removeItem("curseAscentSave");save={...DEFAULT_SAVE};updateTechniqueCard();backToMenu();
+  });
+  $("#respawnBtn").addEventListener("click",respawn);
+}
+function updateTechniqueCard(){
+  const t=TECHNIQUES[save.technique];
+  $("#techName").textContent=save.technique;$("#rarity").textContent=t.rarity;
+  $("#rarity").style.color="#"+t.color.toString(16).padStart(6,"0");
+  $("#techDescription").textContent=t.description;
+  $("#spinsText").textContent=save.spins;
+  $("#menuMoves").innerHTML=t.moves.map((m,i)=>`<div class="move"><b>${i+1} · ${m.name}</b><br>${m.damage?m.damage+" power":"Utility"} · ${m.cost} CE</div>`).join("");
+}
+function initThree(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x080916);
+  scene.fog=new THREE.FogExp2(0x090a18,.018);
+  clock=new THREE.Clock();
+
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.xr.enabled=true;
+  renderer.xr.setReferenceSpaceType("local-floor");
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  $("#game").appendChild(renderer.domElement);
+
+  camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.05,250);
+  camera.position.set(0,1.65,0);
+  playerRig=new THREE.Group();
+  playerRig.position.set(0,0,14);
+  playerRig.add(camera);
+  scene.add(playerRig);
+
+  worldRoot=new THREE.Group();enemyRoot=new THREE.Group();effectRoot=new THREE.Group();
+  scene.add(worldRoot,enemyRoot,effectRoot);
+
+  setupLights();buildWorld();setupHands();setupVR();setupEvents();buildHudSlots();
+
+  const vrButton=VRButton.createButton(renderer);
+  vrButton.style.background="rgba(79,54,210,.92)";
+  $("#vrButtonMount").appendChild(vrButton);
+  renderer.xr.addEventListener("sessionstart",()=>{
+    inVR=true;desktopHands.visible=false;$("#hud").classList.add("hidden");$("#desktopTip").classList.add("hidden");
+    if(!running)startGame();
+    toast("VR READY · Left trigger punches");
+  });
+  renderer.xr.addEventListener("sessionend",()=>{
+    inVR=false;desktopHands.visible=true;if(running)$("#hud").classList.remove("hidden");
+  });
+}
+function setupLights(){
+  scene.add(new THREE.HemisphereLight(0x777bff,0x130e18,1.7));
+  const moon=new THREE.DirectionalLight(0xdde6ff,2.2);
+  moon.position.set(-20,32,12);moon.castShadow=true;
+  moon.shadow.mapSize.set(2048,2048);moon.shadow.camera.left=-45;moon.shadow.camera.right=45;
+  moon.shadow.camera.top=45;moon.shadow.camera.bottom=-45;moon.shadow.camera.far=100;
+  scene.add(moon);
+  const glow=new THREE.PointLight(0x7c4dff,34,40,2);glow.position.set(0,8,-8);scene.add(glow);
+}
+function mat(color,rough=.65,metal=.05,emissive=0x000000,ei=0){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,emissive,emissiveIntensity:ei});
+}
+function box(w,h,d,color,x,y,z){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
+  m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;worldRoot.add(m);return m;
+}
+function buildWorld(){
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(140,140,30,30),mat(0x17182a,.95));
+  ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;worldRoot.add(ground);
+
+  // Street grid
+  for(let i=-50;i<=50;i+=10){
+    const line1=box(.08,.012,100,0x3a3d66,i,.012,0);
+    const line2=box(100,.012,.08,0x3a3d66,0,.012,i);
+    line1.material.emissive.setHex(0x191b43);line1.material.emissiveIntensity=.45;
+    line2.material.emissive.setHex(0x191b43);line2.material.emissiveIntensity=.45;
+  }
+  // City blocks and collision boxes
+  const builds=[
+    [-32,-32,14,12,14],[-12,-34,10,20,10],[14,-34,16,16,18],[36,-30,12,22,13],
+    [-35,-5,15,16,11],[34,-5,18,18,17],[-34,25,17,18,15],[-10,34,13,16,12],
+    [15,34,16,14,19],[37,27,13,20,13]
+  ];
+  builds.forEach(([x,z,w,d,h],idx)=>{
+    const b=box(w,h,d,idx%2?0x20233d:0x272844,x,h/2,z);
+    obstacles.push({x,z,hw:w/2+.7,hd:d/2+.7});
+    for(let yy=2;yy<h-1;yy+=2.3)for(let xx=-w/2+1;xx<w/2;xx+=2.2){
+      if(Math.random()<.68){
+        const win=box(.8,.65,.04,Math.random()<.15?0xff6b91:0x5eeeff,x+xx,yy,z+d/2+.021);
+        win.material.emissive.setHex(win.material.color.getHex());win.material.emissiveIntensity=1.5;
+      }
+    }
+  });
+  // Shrine structure
+  box(20,.6,16,0x2d2036,0,.3,-18);
+  for(const x of [-8,8])for(const z of [-24,-12])box(.8,6,.8,0x7f243f,x,3,z);
+  box(19,.8,2,0x9e3152,0,6,-24);box(19,.8,2,0x9e3152,0,6,-12);
+  box(2,.8,13,0x9e3152,-8,6,-18);box(2,.8,13,0x9e3152,8,6,-18);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(14,4,4),mat(0x27152e,.7,.1));
+  roof.position.set(0,8.2,-18);roof.rotation.y=Math.PI/4;roof.scale.z=.72;roof.castShadow=true;worldRoot.add(roof);
+
+  // Mission broker
+  questNpc=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.42,.5,1.25,16),mat(0x202238));
+  body.position.y=.75;body.castShadow=true;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),mat(0xf1c7a4));
+  head.position.y=1.62;head.castShadow=true;
+  const marker=new THREE.Mesh(new THREE.OctahedronGeometry(.28),mat(0xffd45a,.3,.2,0xffb62e,2.5));
+  marker.position.y=2.55;marker.userData.marker=true;
+  questNpc.add(body,head,marker);questNpc.position.set(0,0,-8);worldRoot.add(questNpc);
+
+  // Decorative cursed lanterns
+  for(let i=0;i<20;i++){
+    const a=i/20*TAU,r=rand(24,48);
+    const p=new THREE.PointLight(i%2?0x5d4cff:0xff3c78,5,8,2);
+    p.position.set(Math.cos(a)*r,1.5,Math.sin(a)*r);scene.add(p);
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),mat(i%2?0x5d4cff:0xff3c78,.3,.1,i%2?0x5d4cff:0xff3c78,3));
+    orb.position.copy(p.position);worldRoot.add(orb);
+  }
+}
+function setupHands(){
+  desktopHands=new THREE.Group();
+  const makePalm=(side)=>{
+    const g=new THREE.Group();
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.13,.035,10,24),mat(side<0?0x59dcff:0xa16aff,.25,.15,side<0?0x1bbfff:0x7137ff,1.4));
+    ring.rotation.x=Math.PI/2;
+    const core=new THREE.Mesh(new THREE.SphereGeometry(.075,14,10),mat(0xf0f3ff,.25,.1,side<0?0x33d8ff:0x9055ff,.8));
+    core.scale.z=.35;
+    g.add(ring,core);
+    for(let i=0;i<4;i++){
+      const f=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),mat(0xe9efff,.35));
+      f.position.set((i-1.5)*.055,.13-Math.abs(i-1.5)*.012,0);g.add(f);
+    }
+    return g;
+  };
+  const lh=makePalm(-1),rh=makePalm(1);
+  lh.position.set(-.33,-.25,-.55);rh.position.set(.33,-.25,-.55);
+  lh.rotation.set(-.3,.2,0);rh.rotation.set(-.3,-.2,0);
+  desktopHands.add(lh,rh);camera.add(desktopHands);
+
+  // VR floating wrist HUD
+  const c=document.createElement("canvas");c.width=768;c.height=384;
+  vrHudCtx=c.getContext("2d");vrHudTexture=new THREE.CanvasTexture(c);
+  vrHudTexture.colorSpace=THREE.SRGBColorSpace;
+  vrHud=new THREE.Mesh(new THREE.PlaneGeometry(.34,.17),new THREE.MeshBasicMaterial({map:vrHudTexture,transparent:true,side:THREE.DoubleSide}));
+  vrHud.position.set(0,.16,.03);vrHud.rotation.set(-Math.PI/2,0,0);vrHud.visible=false;
+}
+function makeVRHand(color){
+  const g=new THREE.Group();
+  const palm=new THREE.Mesh(new THREE.TorusGeometry(.075,.025,10,22),mat(color,.25,.1,color,1.3));
+  palm.rotation.x=Math.PI/2;
+  const core=new THREE.Mesh(new THREE.SphereGeometry(.045,12,8),mat(0xf6f7ff,.3));
+  core.scale.z=.4;g.add(palm,core);
+  const ray=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,1.8,6),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.22}));
+  ray.rotation.x=Math.PI/2;ray.position.z=-.9;g.add(ray);
+  return g;
+}
+function setupVR(){
+  controller0=renderer.xr.getController(0);controller1=renderer.xr.getController(1);
+  grip0=renderer.xr.getControllerGrip(0);grip1=renderer.xr.getControllerGrip(1);
+  controller0.add(makeVRHand(0x54e5ff));controller1.add(makeVRHand(0xa06aff));
+  controller0.add(vrHud);vrHud.visible=true;
+  playerRig.add(controller0,controller1,grip0,grip1);
+  controller0.addEventListener("selectstart",()=>{if(running&&!paused)meleeAttack(true)});
+  controller1.addEventListener("selectstart",()=>{if(running&&!paused)useMove(selectedMove,true)});
+}
+function setupEvents(){
+  addEventListener("resize",()=>{
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);
+  });
+  addEventListener("keydown",e=>{
+    keys[e.code]=true;
+    if(e.code==="Escape"&&running&&!inVR){e.preventDefault();togglePause()}
+    if(!running||paused||dead)return;
+    if(e.code==="Digit1")useMove(0);
+    if(e.code==="Digit2")useMove(1);
+    if(e.code==="Digit3")useMove(2);
+    if(e.code==="Digit4")useMove(3);
+    if(e.code==="KeyQ")dash();
+    if(e.code==="KeyE")interact();
+    if(e.code==="KeyG")awaken();
+    if(e.code==="KeyR")charging=true;
+    if(e.code==="KeyF")blocking=true;
+    if(e.code==="KeyK"){togglePause();$("#pause").querySelector("h2").textContent=save.technique}
+  });
+  addEventListener("keyup",e=>{
+    keys[e.code]=false;if(e.code==="KeyR")charging=false;if(e.code==="KeyF")blocking=false;
+  });
+  renderer.domElement.addEventListener("click",()=>{
+    if(running&&!paused&&!dead&&!inVR&&document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock();
+  });
+  renderer.domElement.addEventListener("mousedown",e=>{
+    if(running&&!paused&&!dead&&!inVR&&e.button===0&&document.pointerLockElement===renderer.domElement)meleeAttack();
+  });
+  addEventListener("mousemove",e=>{
+    if(document.pointerLockElement===renderer.domElement&&running&&!paused&&!inVR){
+      yaw-=e.movementX*.0022;
+      pitch=clamp(pitch-e.movementY*.002,-1.35,1.25);
+      playerRig.rotation.y=yaw;camera.rotation.x=pitch;
+    }
+  });
+  document.addEventListener("pointerlockchange",()=>{
+    if(running&&!inVR&&document.pointerLockElement!==renderer.domElement&&!paused&&!dead)togglePause();
+  });
+}
+function buildHudSlots(){
+  const t=TECHNIQUES[save.technique];
+  $("#moves").innerHTML=t.moves.map((m,i)=>`<div class="slot ${i===selectedMove?"active":""}" data-slot="${i}">
+    <div class="key">${i+1}</div><div class="name">${m.name}</div><div class="cd hidden">0</div></div>`).join("");
+}
+function startGame(){
+  running=true;paused=false;dead=false;
+  $("#menu").classList.add("hidden");$("#pause").classList.add("hidden");$("#death").classList.add("hidden");
+  if(!inVR){$("#hud").classList.remove("hidden");$("#desktopTip").classList.remove("hidden")}
+  playerRig.position.set(0,0,14);yaw=0;pitch=0;playerRig.rotation.y=0;camera.rotation.x=0;
+  player.hp=player.maxHp=100+Math.floor(save.level/5)*5;
+  player.ce=player.maxCe=100+Math.floor(save.mastery/10)*4;
+  player.aw=0;player.invuln=1;player.dashCd=0;awakened=false;cooldowns=[0,0,0,0];
+  buildHudSlots();updateHud();toast(`${save.technique} equipped`);
+  if(enemies.length===0)spawnAmbientCurses(5);
+}
+function backToMenu(){
+  running=false;paused=false;dead=false;
+  if(document.pointerLockElement)document.exitPointerLock();
+  $("#menu").classList.remove("hidden");$("#pause").classList.add("hidden");$("#death").classList.add("hidden");
+  $("#hud").classList.add("hidden");$("#desktopTip").classList.add("hidden");
+  updateTechniqueCard();
+}
+function togglePause(){
+  if(!running||dead)return;
+  paused=!paused;$("#pause").classList.toggle("hidden",!paused);
+  if(paused&&document.pointerLockElement)document.exitPointerLock();
+}
+function respawn(){
+  dead=false;$("#death").classList.add("hidden");if(!inVR)$("#hud").classList.remove("hidden");
+  player.hp=player.maxHp;player.ce=player.maxCe;player.aw=Math.min(player.aw,40);player.invuln=2;
+  playerRig.position.set(0,0,14);toast("Back from the floor.");
+}
+function toast(text){
+  const el=$("#toast");el.textContent=text;el.style.opacity=1;el.style.transform="translateX(-50%) translateY(0)";
+  clearTimeout(toast.t);toast.t=setTimeout(()=>{el.style.opacity=0;el.style.transform="translateX(-50%) translateY(-18px)"},1800);
+}
+function interact(){
+  const d=playerRig.position.distanceTo(questNpc.position);
+  if(d<4.5){
+    if(!quest.active){
+      quest.active=true;quest.kills=0;quest.target=4+Math.floor(save.missions/2);
+      quest.boss=(save.missions+1)%4===0;
+      toast(quest.boss?"BOSS MISSION ACCEPTED":"MISSION ACCEPTED");
+      clearEnemies();spawnMissionWave();
+    }else toast(`${quest.kills}/${quest.target} curses defeated`);
+  }
+}
+function dash(){
+  if(player.dashCd>0||player.ce<8)return;
+  player.ce-=8;player.dashCd=.85;player.invuln=.18;
+  const f=getFlatForward();playerRig.position.addScaledVector(f,4.2);
+  burst(playerRig.position.clone().add(new THREE.Vector3(0,1,0)),0x7de8ff,18,.12,2.5);
+}
+function awaken(){
+  if(player.aw<100){toast(`Awakening ${Math.floor(player.aw)}%`);return}
+  player.aw=0;awakened=true;player.buffTimer=18;player.hp=Math.min(player.maxHp,player.hp+35);player.ce=player.maxCe;
+  const t=TECHNIQUES[save.technique];
+  toast(`${t.awakening.toUpperCase()}!`);
+  domainDome(playerRig.position.clone(),t.color,18);
+  damageArea(playerRig.position,14,45,true);
+}
+function meleeAttack(fromVR=false){
+  if(player.meleeCd>0)return;
+  player.attackChain=(player.attackReset>0?player.attackChain%4:0)+1;
+  player.attackReset=.8;player.meleeCd=player.attackChain===4?.55:.22;
+  const dmg=(7+save.level*.08)*(awakened?1.45:1);
+  const reach=fromVR?2.5:3.2;
+  const hit=damageCone(reach,.62,dmg,player.attackChain===4?5:1);
+  combo=hit?combo+1:0;comboTimer=1.7;save.bestCombo=Math.max(save.bestCombo,combo);
+  const origin=getAttackOrigin(fromVR?controller0:null);
+  slashFx(origin,getAimDirection(fromVR?controller0:null),player.attackChain===4?0xffd45a:0xeef7ff,.5);
+  if(hit){player.aw=clamp(player.aw+5,0,100);save.masteryXp+=1}
+}
+function useMove(index,fromVR=false){
+  if(!running||paused||dead)return;
+  selectedMove=index;highlightSelected();
+  const t=TECHNIQUES[save.technique],m=t.moves[index];
+  if(cooldowns[index]>0){toast(`${m.name}: ${cooldowns[index].toFixed(1)}s`);return}
+  const cost=awakened?Math.ceil(m.cost*.55):m.cost;
+  if(player.ce<cost){toast("Not enough cursed energy");return}
+  player.ce-=cost;cooldowns[index]=m.cd*(awakened?.72:1);
+  const origin=getAttackOrigin(fromVR?controller1:null),dir=getAimDirection(fromVR?controller1:null);
+  castTechnique(m,origin,dir,t.color);
+  save.masteryXp+=2+index;player.aw=clamp(player.aw+5+index*2,0,100);
+}
+function castTechnique(m,origin,dir,color){
+  const power=(1+save.mastery*.012)*(awakened?1.35:1), dmg=m.damage*power;
+  switch(m.type){
+    case "pull":
+      projectile(origin,dir,color,18,.34,()=>damageConeAt(origin.clone().addScaledVector(dir,16),8,dmg,10,true));
+      for(const e of enemies)if(e.alive&&e.mesh.position.distanceTo(playerRig.position)<m.range)e.velocity.add(playerRig.position.clone().sub(e.mesh.position).normalize().multiplyScalar(8));
+      break;
+    case "blast":case "fire":case "wing":
+      projectile(origin,dir,color,24,.28,p=>{explosion(p,color,4);damageArea(p,5,dmg,true)});break;
+    case "slash":
+      slashFx(origin,dir,color,2.2);damageCone(m.range,.28,dmg,3);break;
+    case "cross":
+      slashFx(origin,dir,color,2.8);setTimeout(()=>slashFx(origin,dir.clone().applyAxisAngle(new THREE.Vector3(0,0,1),Math.PI/2),color,2.8),80);
+      damageCone(m.range,.42,dmg,5);break;
+    case "beam":
+      beamFx(origin,dir,color,m.range,1.1);damageCone(m.range,.22,dmg,8);break;
+    case "guard":
+      player.guardTimer=5;blocking=true;setTimeout(()=>{if(player.guardTimer<=0)blocking=false},5100);
+      aura(playerRig,color,5);toast("Neutral guard active");break;
+    case "buff":
+      player.buffTimer=Math.max(player.buffTimer,12);aura(playerRig,color,12);toast("Physical stats boosted");break;
+    case "snare":
+      projectile(origin,dir,color,18,.22,p=>{
+        explosion(p,color,3);for(const e of enemies)if(e.alive&&e.mesh.position.distanceTo(p)<5){e.stun=3;e.velocity.set(0,0,0);hurtEnemy(e,dmg)}
+      });break;
+    case "uppercut":
+      if(damageCone(6,.72,dmg,12))burst(origin,color,25,.2,3);break;
+    case "spin":
+      ringFx(playerRig.position.clone().add(new THREE.Vector3(0,.7,0)),color,7);damageArea(playerRig.position,8,dmg,true);break;
+    case "domain":
+      domainDome(playerRig.position.clone(),color,12);damageArea(playerRig.position,m.range,dmg,true);break;
+    case "rain":
+      for(let i=0;i<12;i++)setTimeout(()=>{
+        const p=playerRig.position.clone().add(new THREE.Vector3(rand(-10,10),10,rand(-10,10)));
+        projectile(p,new THREE.Vector3(0,-1,0),color,22,.18,q=>{explosion(q,color,2.5);damageArea(q,3,dmg/3,true)})
+      },i*90);break;
+    case "swap":{
+      const e=getTarget(m.range,.7);
+      if(e){const temp=e.mesh.position.clone();e.mesh.position.copy(playerRig.position);playerRig.position.copy(temp);hurtEnemy(e,dmg);burst(temp,color,16,.15,2);burst(playerRig.position,color,16,.15,2)}
+      else dash();
+      break}
+    case "rush":{
+      const f=getFlatForward();playerRig.position.addScaledVector(f,7);damageCone(8,.85,dmg,9);burst(playerRig.position,color,20,.15,2.4);break}
+    case "chaos":
+      for(const e of enemies)if(e.alive&&e.mesh.position.distanceTo(playerRig.position)<m.range){
+        const a=Math.random()*TAU,r=rand(3,12);e.mesh.position.set(playerRig.position.x+Math.cos(a)*r,0,playerRig.position.z+Math.sin(a)*r);hurtEnemy(e,dmg*.7)
+      }domainDome(playerRig.position.clone(),color,7);break;
+    case "hound":
+      projectile(origin,dir,color,15,.5,p=>{explosion(p,color,3);damageArea(p,4,dmg,true)},"hound");break;
+    default:
+      projectile(origin,dir,color,20,.25,p=>{explosion(p,color,4);damageArea(p,5,dmg,true)});
+  }
+}
+function getAttackOrigin(controller=null){
+  if(controller){
+    const p=new THREE.Vector3();controller.getWorldPosition(p);return p;
+  }
+  const p=new THREE.Vector3();camera.getWorldPosition(p);return p.add(getAimDirection().multiplyScalar(.5));
+}
+function getAimDirection(controller=null){
+  const q=new THREE.Quaternion();
+  if(controller)controller.getWorldQuaternion(q);else camera.getWorldQuaternion(q);
+  return new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+}
+function getFlatForward(){
+  const d=getAimDirection();d.y=0;if(d.lengthSq()<.01)d.set(0,0,-1);return d.normalize();
+}
+function getTarget(range,cone=.55){
+  const p=playerRig.position,dir=getAimDirection();
+  let best=null,bestD=Infinity;
+  for(const e of enemies){
+    if(!e.alive)continue;
+    const to=e.mesh.position.clone().sub(p),d=to.length();
+    if(d<=range&&to.normalize().dot(dir)>1-cone&&d<bestD){best=e;bestD=d}
+  }return best;
+}
+function damageCone(range,cone,damage,knock=1){return damageConeAt(playerRig.position,getAimDirection(),range,cone,damage,knock)}
+function damageConeAt(originOrCenter,a,b,c,d,e){
+  // Overload: (center, radius, damage, knock, pull) or (origin, dir, range, cone, damage, knock)
+  if(a instanceof THREE.Vector3){
+    const origin=originOrCenter,dir=a,range=b,cone=c,damage=d,knock=e;let hit=false;
+    for(const enemy of enemies){
+      if(!enemy.alive)continue;
+      const to=enemy.mesh.position.clone().sub(origin),dist=to.length();
+      if(dist<range&&to.normalize().dot(dir)>1-cone){
+        hurtEnemy(enemy,damage);enemy.velocity.add(dir.clone().multiplyScalar(knock));hit=true;
+      }
+    }return hit;
+  }else{
+    const center=originOrCenter,radius=a,damage=b,knock=c,pull=d;let hit=false;
+    for(const enemy of enemies)if(enemy.alive&&enemy.mesh.position.distanceTo(center)<radius){
+      hurtEnemy(enemy,damage);const dir=enemy.mesh.position.clone().sub(center).normalize();
+      enemy.velocity.addScaledVector(dir,pull?-knock:knock);hit=true;
+    }return hit;
+  }
+}
+function damageArea(center,radius,damage,knock=false){
+  let hit=false;
+  for(const e of enemies)if(e.alive&&e.mesh.position.distanceTo(center)<radius){
+    hurtEnemy(e,damage);if(knock)e.velocity.add(e.mesh.position.clone().sub(center).normalize().multiplyScalar(7));hit=true;
+  }return hit;
+}
+function hurtEnemy(e,amount){
+  if(!e.alive)return;
+  e.hp-=amount;e.flash=.1;e.stun=Math.max(e.stun,.18);combo++;comboTimer=1.8;
+  player.aw=clamp(player.aw+Math.min(8,amount*.1),0,100);
+  floatingText(e.mesh.position.clone().add(new THREE.Vector3(0,2.1,0)),Math.round(amount),amount>45?0xffd65e:0xffffff);
+  if(e.hp<=0)killEnemy(e);
+}
+function killEnemy(e){
+  e.alive=false;e.mesh.visible=false;
+  explosion(e.mesh.position.clone().add(new THREE.Vector3(0,1,0)),e.boss?0xff2d62:0x6f5cff,e.boss?7:3);
+  save.coins+=e.boss?260:22;gainXp(e.boss?220:38);save.masteryXp+=e.boss?18:4;
+  if(quest.active){
+    quest.kills++;
+    if(quest.kills>=quest.target)completeQuest();
+  }
+  setTimeout(()=>{enemyRoot.remove(e.mesh);const i=enemies.indexOf(e);if(i>=0)enemies.splice(i,1)},50);
+}
+function gainXp(amount){
+  save.xp+=amount;
+  const need=80+save.level*28;
+  if(save.xp>=need){
+    save.xp-=need;save.level++;player.maxHp+=3;player.hp=player.maxHp;
+    toast(`LEVEL ${save.level}!`);updateGrade();
+  }
+  const mNeed=30+save.mastery*5;
+  if(save.masteryXp>=mNeed){save.masteryXp-=mNeed;save.mastery++;toast(`MASTERY ${save.mastery}`)}
+  persist();
+}
+function updateGrade(){
+  const lv=save.level;
+  save.grade=lv>=45?"SPECIAL GRADE":lv>=32?"GRADE 1":lv>=22?"GRADE 2":lv>=12?"GRADE 3":lv>=5?"GRADE 4":"NON-SORCERER";
+}
+function completeQuest(){
+  quest.active=false;save.missions++;save.coins+=150+save.missions*8;save.spins++;gainXp(100+save.level*8);
+  player.hp=player.maxHp;player.ce=player.maxCe;persist();
+  toast("MISSION COMPLETE · +1 SPIN");
+  setTimeout(()=>spawnAmbientCurses(4),2500);
+}
+function clearEnemies(){
+  for(const e of enemies)enemyRoot.remove(e.mesh);enemies.length=0;
+}
+function spawnMissionWave(){
+  const count=quest.target-(quest.boss?1:0);
+  for(let i=0;i<count;i++)spawnEnemy(false,i);
+  if(quest.boss){
+    setTimeout(()=>{spawnEnemy(true,count);showBossBanner()},1000);
+  }
+}
+function spawnAmbientCurses(n){
+  for(let i=0;i<n;i++)spawnEnemy(false,i);
+}
+function spawnEnemy(boss=false,index=0){
+  const g=new THREE.Group();
+  const color=boss?0x7b112e:[0x332054,0x17394b,0x49243b][index%3];
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(boss?.8:.5,boss?1.7:1.05,7,12),mat(color,.55,.05,color,boss?.8:.18));
+  body.position.y=boss?1.55:1.05;body.castShadow=true;g.add(body);
+  const eyeMat=new THREE.MeshBasicMaterial({color:boss?0xff315e:0xf2efff});
+  for(const x of [-.17,.17]){
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(boss?.085:.055,8,6),eyeMat);
+    eye.position.set(x,boss?2.25:1.48,boss?.67:.43);g.add(eye);
+  }
+  if(boss){
+    const horns=new THREE.Mesh(new THREE.TorusGeometry(.82,.08,8,18,Math.PI),mat(0xff315e,.4,.15,0xff315e,1));
+    horns.position.y=2.7;horns.rotation.z=Math.PI;g.add(horns);
+  }
+  let a=Math.random()*TAU,r=rand(15,34);
+  g.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
+  enemyRoot.add(g);
+  const scale=1+(save.level-1)*.035;
+  enemies.push({mesh:g,hp:(boss?360:58)*scale,maxHp:(boss?360:58)*scale,
+    speed:(boss?3.1:rand(2.0,2.8))*Math.min(1.5,scale),damage:(boss?18:8)*scale,
+    boss,alive:true,attackCd:rand(.3,1),velocity:new THREE.Vector3(),stun:0,flash:0,phase:0});
+}
+function showBossBanner(){
+  const b=$("#bossBanner");b.style.opacity=1;b.style.transform="translate(-50%,-50%) scale(1)";
+  setTimeout(()=>{b.style.opacity=0;b.style.transform="translate(-50%,-50%) scale(1.15)"},2300);
+}
+function updateEnemies(dt,t){
+  const pp=playerRig.position;
+  for(const e of enemies){
+    if(!e.alive)continue;
+    e.attackCd-=dt;e.stun-=dt;e.flash-=dt;
+    const body=e.mesh.children[0];
+    body.material.emissiveIntensity=e.flash>0?2:(e.boss?.8:.18);
+    if(e.stun<=0&&!paused&&!dead){
+      const to=pp.clone().sub(e.mesh.position);to.y=0;const dist=to.length();
+      if(dist>1.6){
+        to.normalize();e.mesh.position.addScaledVector(to,e.speed*dt);
+        e.mesh.lookAt(pp.x,e.mesh.position.y,pp.z);
+      }else if(e.attackCd<=0){
+        e.attackCd=e.boss?1.05:1.35;enemyAttack(e);
+      }
+      if(e.boss&&dist<12&&Math.sin(t*1.8)>0.97&&e.phase<=0){
+        e.phase=3;ringFx(e.mesh.position.clone().add(new THREE.Vector3(0,.3,0)),0xff315e,10);
+        setTimeout(()=>{if(e.alive)damagePlayer(e.damage*1.4,e.mesh.position)},550);
+      }
+    }
+    e.phase-=dt;
+    e.mesh.position.addScaledVector(e.velocity,dt);
+    e.velocity.multiplyScalar(Math.pow(.035,dt));
+    e.mesh.position.y=0;
+  }
+}
+function enemyAttack(e){
+  slashFx(e.mesh.position.clone().add(new THREE.Vector3(0,1.1,0)),playerRig.position.clone().sub(e.mesh.position).normalize(),e.boss?0xff315e:0xb68cff,e.boss?1.8:1);
+  setTimeout(()=>{if(e.alive&&e.mesh.position.distanceTo(playerRig.position)<2.5)damagePlayer(e.damage,e.mesh.position)},180);
+}
+function damagePlayer(amount,source){
+  if(player.invuln>0||dead)return;
+  let mult=blocking||player.guardTimer>0?.25:1;
+  player.hp-=amount*mult;player.invuln=.22;
+  $("#damageFlash").style.opacity=.75;setTimeout(()=>$("#damageFlash").style.opacity=0,100);
+  const away=playerRig.position.clone().sub(source);away.y=0;if(away.lengthSq())playerRig.position.addScaledVector(away.normalize(),mult<1?.3:.8);
+  if(player.hp<=0){player.hp=0;dead=true;if(document.pointerLockElement)document.exitPointerLock();$("#death").classList.remove("hidden");$("#hud").classList.add("hidden")}
+}
+function updatePlayer(dt){
+  player.invuln-=dt;player.dashCd-=dt;player.meleeCd-=dt;player.attackReset-=dt;
+  player.buffTimer-=dt;player.guardTimer-=dt;
+  if(player.guardTimer<=0&&!keys["KeyF"])blocking=false;
+  if(awakened&&player.buffTimer<=0){awakened=false;toast("Awakening ended")}
+  for(let i=0;i<4;i++)cooldowns[i]=Math.max(0,cooldowns[i]-dt);
+
+  if(charging&&!inVR){
+    player.ce=Math.min(player.maxCe,player.ce+34*dt);
+    player.speed=3.2;
+  }else{
+    player.ce=Math.min(player.maxCe,player.ce+(awakened?13:7)*dt);
+    player.speed=(player.buffTimer>0?8.2:6.5);
+  }
+  if(dead||paused)return;
+
+  if(inVR)updateVRInput(dt);
+  else{
+    const move=new THREE.Vector3((keys["KeyD"]?1:0)-(keys["KeyA"]?1:0),0,(keys["KeyS"]?1:0)-(keys["KeyW"]?1:0));
+    if(move.lengthSq()){
+      move.normalize().applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+      moveWithCollision(move.x*player.speed*dt,move.z*player.speed*dt);
     }
   }
-  </script>
-
-  <script type="module">
-    import * as THREE from "three";
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x91ddff);
-    scene.fog = new THREE.Fog(0x91ddff, 30, 85);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.xr.enabled = true;
-    renderer.xr.setReferenceSpaceType("local-floor");
-    document.body.appendChild(renderer.domElement);
-
-    const player = new THREE.Group();
-    player.position.set(0, 0, 8);
-    scene.add(player);
-
-    const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 120);
-    camera.position.set(0, 2.25, 0);
-    player.add(camera);
-
-    function createCartoonHand(side = 1, vrHand = false) {
-      const hand = new THREE.Group();
-
-      const skin = new THREE.MeshStandardMaterial({
-        color: 0xf0b58c,
-        roughness: .8
-      });
-
-      const cuffMat = new THREE.MeshStandardMaterial({
-        color: 0x4fa85b,
-        roughness: .75
-      });
-
-      const ballRadius = vrHand ? .065 : .095;
-
-      const handBall = new THREE.Mesh(
-        new THREE.SphereGeometry(ballRadius, 20, 16),
-        skin
-      );
-      handBall.castShadow = true;
-      handBall.receiveShadow = true;
-      hand.add(handBall);
-
-      const cuff = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          vrHand ? .04 : .055,
-          vrHand ? .05 : .065,
-          vrHand ? .09 : .12,
-          16
-        ),
-        cuffMat
-      );
-      cuff.position.y = -(ballRadius + (vrHand ? .05 : .065));
-      cuff.rotation.z = side * .1;
-      cuff.castShadow = true;
-      hand.add(cuff);
-
-      hand.userData.side = side;
-      return hand;
+  playerRig.position.x=clamp(playerRig.position.x,-55,55);playerRig.position.z=clamp(playerRig.position.z,-55,55);
+  if(comboTimer>0)comboTimer-=dt;else combo=0;
+}
+function moveWithCollision(dx,dz){
+  const nx=playerRig.position.x+dx,nz=playerRig.position.z+dz;
+  let hitX=false,hitZ=false;
+  for(const o of obstacles){
+    if(Math.abs(nx-o.x)<o.hw&&Math.abs(playerRig.position.z-o.z)<o.hd)hitX=true;
+    if(Math.abs(playerRig.position.x-o.x)<o.hw&&Math.abs(nz-o.z)<o.hd)hitZ=true;
+  }
+  if(!hitX)playerRig.position.x=nx;if(!hitZ)playerRig.position.z=nz;
+}
+function updateVRInput(dt){
+  const session=renderer.xr.getSession();if(!session)return;
+  const sources=[...session.inputSources];
+  let left=null,right=null;
+  for(const s of sources){if(s.handedness==="left")left=s;if(s.handedness==="right")right=s}
+  if(left?.gamepad){
+    const g=left.gamepad,ax=g.axes;
+    const sx=ax.length>=4?ax[2]:ax[0],sy=ax.length>=4?ax[3]:ax[1];
+    if(Math.hypot(sx,sy)>.15){
+      const q=new THREE.Quaternion();camera.getWorldQuaternion(q);
+      const f=new THREE.Vector3(0,0,-1).applyQuaternion(q);f.y=0;f.normalize();
+      const r=new THREE.Vector3().crossVectors(f,new THREE.Vector3(0,1,0)).normalize();
+      const m=f.multiplyScalar(-sy).add(r.multiplyScalar(sx)).normalize();
+      moveWithCollision(m.x*player.speed*dt,m.z*player.speed*dt);
     }
-
-    const desktopHands = new THREE.Group();
-    const desktopLeftHand = createCartoonHand(-1, false);
-    const desktopRightHand = createCartoonHand(1, false);
-
-    desktopLeftHand.position.set(-.34, -.38, -.68);
-    desktopRightHand.position.set(.34, -.38, -.68);
-    desktopLeftHand.rotation.set(-.35, -.15, -.08);
-    desktopRightHand.rotation.set(-.35, .15, .08);
-
-    desktopHands.add(desktopLeftHand, desktopRightHand);
-    camera.add(desktopHands);
-
-    function animateHandUse() {
-      handUse = 1;
+    const buttons=g.buttons;
+    if(pressed(0,4,buttons))dash(); // X
+    if(pressed(0,5,buttons))interact(); // Y
+    blocking=!!buttons[1]?.pressed;
+  }
+  if(right?.gamepad){
+    const g=right.gamepad,ax=g.axes;
+    const sx=ax.length>=4?ax[2]:ax[0];
+    if(Math.abs(sx)<.45)snapReady=true;
+    if(snapReady&&Math.abs(sx)>.72){
+      playerRig.rotation.y-=Math.sign(sx)*Math.PI/6;yaw=playerRig.rotation.y;snapReady=false;
     }
-
-    function updateHands(dt) {
-      handUse = Math.max(0, handUse - dt * 5.5);
-
-      const walking =
-        !renderer.xr.isPresenting &&
-        (keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD);
-
-      if (walking) walkBobTime += dt * 9;
-      const bob = walking ? Math.sin(walkBobTime) * .018 : 0;
-      const sway = walking ? Math.cos(walkBobTime * .5) * .012 : 0;
-
-      desktopLeftHand.position.set(
-        -.34 - sway,
-        -.38 - bob,
-        -.68
-      );
-      desktopRightHand.position.set(
-        .34 + sway,
-        -.38 + bob - handUse * .035,
-        -.68 - handUse * .23
-      );
-      desktopRightHand.rotation.x = -.35 - handUse * .35;
-    }
-
-    const clock = new THREE.Clock();
-    const raycaster = new THREE.Raycaster();
-    raycaster.far = 5.5;
-    const interactive = [];
-    const plots = [];
-    const particles = [];
-    const keys = {};
-    let yaw = 0;
-    let pitch = 0;
-    let toastTimer = 0;
-    let hovered = null;
-    let lastRightTurn = false;
-    let lastSave = 0;
-    let dragLook = false;
-    let lastPointerX = 0;
-    let lastPointerY = 0;
-    let handUse = 0;
-    let walkBobTime = 0;
-
-    const cropData = {
-      carrot: {
-        label: "Carrot",
-        seedPrice: 2,
-        sellPrice: 7,
-        growTime: 18,
-        color: 0xff7d2d,
-        leaf: 0x42a94b
-      },
-      tomato: {
-        label: "Tomato",
-        seedPrice: 4,
-        sellPrice: 13,
-        growTime: 28,
-        color: 0xf04444,
-        leaf: 0x358d3a
-      },
-      sunflower: {
-        label: "Sunflower",
-        seedPrice: 6,
-        sellPrice: 20,
-        growTime: 38,
-        color: 0xffcf35,
-        leaf: 0x398f42
-      }
-    };
-
-    const defaultState = {
-      coins: 20,
-      selected: "carrot",
-      seeds: { carrot: 0, tomato: 0, sunflower: 0 },
-      produce: { carrot: 0, tomato: 0, sunflower: 0 },
-      tutorial: 0
-    };
-
-    let state = loadState();
-
-    function loadState() {
-      try {
-        const saved = JSON.parse(localStorage.getItem("sproutSellVRSave"));
-        if (!saved) return structuredClone(defaultState);
-        return {
-          ...structuredClone(defaultState),
-          ...saved,
-          seeds: { ...defaultState.seeds, ...(saved.seeds || {}) },
-          produce: { ...defaultState.produce, ...(saved.produce || {}) }
-        };
-      } catch {
-        return structuredClone(defaultState);
-      }
-    }
-
-    function saveState(force = false) {
-      const now = performance.now();
-      if (!force && now - lastSave < 1000) return;
-      lastSave = now;
-      localStorage.setItem("sproutSellVRSave", JSON.stringify(state));
-    }
-
-    const hud = {
-      coins: document.getElementById("coins"),
-      selected: document.getElementById("selected"),
-      seeds: document.getElementById("seeds"),
-      produce: document.getElementById("produce"),
-      objective: document.getElementById("objective")
-    };
-
-    function updateHUD() {
-      hud.coins.textContent = state.coins;
-      hud.selected.textContent = cropData[state.selected].label;
-      hud.seeds.textContent =
-        `${state.seeds.carrot} / ${state.seeds.tomato} / ${state.seeds.sunflower}`;
-      hud.produce.textContent =
-        `${state.produce.carrot} / ${state.produce.tomato} / ${state.produce.sunflower}`;
-
-      const growing = plots.filter(p => p.crop && p.progress < 1).length;
-      const mature = plots.filter(p => p.crop && p.progress >= 1).length;
-      const produceCount = Object.values(state.produce).reduce((a, b) => a + b, 0);
-
-      if (state.tutorial === 0) {
-        hud.objective.textContent = "Walk to the seed stall and buy your first packet.";
-      } else if (state.tutorial === 1) {
-        hud.objective.textContent = "Point at an empty soil plot and click to plant.";
-      } else if (state.tutorial === 2) {
-        hud.objective.textContent = "Click the planted plot to water it. Growth pauses when it dries out.";
-      } else if (mature > 0) {
-        hud.objective.textContent = `${mature} crop${mature === 1 ? "" : "s"} ready! Click mature plants to harvest.`;
-      } else if (produceCount > 0) {
-        hud.objective.textContent = "Carry your harvest to the yellow SELL crate and click it.";
-      } else if (growing > 0) {
-        hud.objective.textContent = "Your garden is growing. Keep the blue water meter above zero.";
-      } else {
-        hud.objective.textContent = "Buy more seeds, plant more plots, and grow your garden business.";
-      }
-    }
-
-    function toast(message) {
-      const el = document.getElementById("toast");
-      el.textContent = message;
-      el.classList.add("show");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
-    }
-
-    function mat(color, rough = 0.8, metal = 0) {
-      return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
-    }
-
-    function mesh(geo, material, parent = scene, shadows = true) {
-      const m = new THREE.Mesh(geo, material);
-      if (shadows) {
-        m.castShadow = true;
-        m.receiveShadow = true;
-      }
-      parent.add(m);
-      return m;
-    }
-
-    function addBox(size, pos, color, parent = scene, rotY = 0) {
-      const m = mesh(new THREE.BoxGeometry(size.x, size.y, size.z), mat(color), parent);
-      m.position.copy(pos);
-      m.rotation.y = rotY;
-      return m;
-    }
-
-    function addCylinder(radius, height, pos, color, parent = scene, segments = 20) {
-      const m = mesh(new THREE.CylinderGeometry(radius, radius, height, segments), mat(color), parent);
-      m.position.copy(pos);
-      return m;
-    }
-
-    function makeTextSprite(text, options = {}) {
-      const {
-        color = "#ffffff",
-        bg = "rgba(20,40,25,.85)",
-        width = 512,
-        height = 160,
-        fontSize = 54,
-        border = "#ffffff"
-      } = options;
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = bg;
-      roundRect(ctx, 8, 8, width - 16, height - 16, 28);
-      ctx.fill();
-      ctx.strokeStyle = border;
-      ctx.lineWidth = 8;
-      roundRect(ctx, 8, 8, width - 16, height - 16, 28);
-      ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `900 ${fontSize}px system-ui, sans-serif`;
-      const lines = text.split("\n");
-      const lineHeight = fontSize * 1.05;
-      lines.forEach((line, i) => {
-        ctx.fillText(line, width / 2, height / 2 + (i - (lines.length - 1) / 2) * lineHeight);
-      });
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-      sprite.scale.set(width / 180, height / 180, 1);
-      return sprite;
-    }
-
-    function roundRect(ctx, x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, r);
-    }
-
-    // Lighting
-    scene.add(new THREE.HemisphereLight(0xdff5ff, 0x497c3a, 2.1));
-    const sun = new THREE.DirectionalLight(0xfff4cf, 2.8);
-    sun.position.set(-12, 22, 8);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -28;
-    sun.shadow.camera.right = 28;
-    sun.shadow.camera.top = 28;
-    sun.shadow.camera.bottom = -28;
-    scene.add(sun);
-
-    // World
-    const ground = mesh(new THREE.PlaneGeometry(120, 120), mat(0x70bd66), scene);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-
-    // Path
-    const path = mesh(new THREE.PlaneGeometry(5.5, 34), mat(0xc9b584), scene, false);
-    path.rotation.x = -Math.PI / 2;
-    path.position.set(0, 0.012, -4);
-
-    // Clouds
-    for (let i = 0; i < 10; i++) {
-      const cloud = new THREE.Group();
-      for (let j = 0; j < 5; j++) {
-        const puff = mesh(new THREE.SphereGeometry(0.8 + Math.random() * 0.55, 14, 10), mat(0xffffff), cloud, false);
-        puff.position.set(j * 0.75, Math.random() * 0.5, Math.random() * 0.5);
-      }
-      cloud.position.set(-30 + Math.random() * 60, 12 + Math.random() * 8, -25 + Math.random() * 45);
-      cloud.scale.setScalar(1.2 + Math.random() * 1.3);
-      scene.add(cloud);
-    }
-
-    // Fence
-    function buildFence() {
-      const fenceColor = 0xf0d79c;
-      for (const z of [-18, 18]) {
-        for (let x = -20; x <= 20; x += 2) {
-          addBox(new THREE.Vector3(.18, 1.5, .18), new THREE.Vector3(x, .75, z), fenceColor);
-        }
-        addBox(new THREE.Vector3(40, .16, .16), new THREE.Vector3(0, .65, z), fenceColor);
-        addBox(new THREE.Vector3(40, .16, .16), new THREE.Vector3(0, 1.25, z), fenceColor);
-      }
-      for (const x of [-20, 20]) {
-        for (let z = -18; z <= 18; z += 2) {
-          addBox(new THREE.Vector3(.18, 1.5, .18), new THREE.Vector3(x, .75, z), fenceColor);
-        }
-        addBox(new THREE.Vector3(.16, .16, 36), new THREE.Vector3(x, .65, 0), fenceColor);
-        addBox(new THREE.Vector3(.16, .16, 36), new THREE.Vector3(x, 1.25, 0), fenceColor);
-      }
-    }
-    buildFence();
-
-    // Trees outside the garden
-    for (let i = 0; i < 28; i++) {
-      const angle = (i / 28) * Math.PI * 2;
-      const radius = 25 + Math.random() * 15;
-      const tree = new THREE.Group();
-      addCylinder(.35, 3.5, new THREE.Vector3(0, 1.75, 0), 0x7b4e2b, tree);
-      const crown = mesh(new THREE.IcosahedronGeometry(1.8 + Math.random() * .8, 1), mat(0x3f9f4d), tree);
-      crown.position.y = 4;
-      tree.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-      scene.add(tree);
-    }
-
-    // Garden plots
-    function createPlot(x, z, index) {
-      const group = new THREE.Group();
-      group.position.set(x, 0, z);
-
-      const border = addBox(new THREE.Vector3(3.2, .35, 2.7), new THREE.Vector3(0, .18, 0), 0x98633d, group);
-      const soil = addBox(new THREE.Vector3(2.75, .22, 2.25), new THREE.Vector3(0, .39, 0), 0x5d351f, group);
-      soil.material = mat(0x5d351f);
-
-      const waterBack = addBox(new THREE.Vector3(2.4, .12, .10), new THREE.Vector3(0, .72, -1.2), 0x26333a, group);
-      const waterBar = addBox(new THREE.Vector3(0.01, .08, .07), new THREE.Vector3(-1.18, .72, -1.2), 0x3ebcff, group);
-      waterBar.geometry.dispose();
-      waterBar.geometry = new THREE.BoxGeometry(1, .08, .07);
-      waterBar.scale.x = 0.001;
-      waterBar.position.x = -1.18;
-
-      const plot = {
-        index,
-        group,
-        soil,
-        waterBar,
-        crop: null,
-        progress: 0,
-        water: 0,
-        plantObject: null,
-        dryPulse: 0
-      };
-
-      soil.userData.interaction = () => interactPlot(plot);
-      soil.userData.plot = plot;
-      interactive.push(soil);
-      plots.push(plot);
-      scene.add(group);
-    }
-
-    const plotPositions = [
-      [-5.5, 1.5], [-1.8, 1.5], [1.8, 1.5], [5.5, 1.5],
-      [-5.5, -2.0], [-1.8, -2.0], [1.8, -2.0], [5.5, -2.0]
-    ];
-    plotPositions.forEach((p, i) => createPlot(p[0], p[1], i));
-
-    // Shop stall
-    function createShop() {
-      const shop = new THREE.Group();
-      shop.position.set(-10, 0, -8);
-
-      addBox(new THREE.Vector3(7, .55, 3), new THREE.Vector3(0, .3, 0), 0x8d5a35, shop);
-      addBox(new THREE.Vector3(6.4, 2.2, .4), new THREE.Vector3(0, 1.45, 1.3), 0xc88348, shop);
-      addBox(new THREE.Vector3(.35, 4.4, .35), new THREE.Vector3(-3, 2.2, 0), 0x6e452b, shop);
-      addBox(new THREE.Vector3(.35, 4.4, .35), new THREE.Vector3(3, 2.2, 0), 0x6e452b, shop);
-      const roof = addBox(new THREE.Vector3(7.4, .35, 4), new THREE.Vector3(0, 4.25, 0), 0xffe27a, shop);
-      roof.rotation.z = -.05;
-
-      const sign = makeTextSprite("SEED SHOP", { bg: "rgba(86,54,25,.95)", width: 640, height: 150 });
-      sign.position.set(0, 3.35, 1.55);
-      sign.scale.set(4.3, 1, 1);
-      shop.add(sign);
-
-      const types = ["carrot", "tomato", "sunflower"];
-      const colors = [0xff8b39, 0xf04747, 0xffcf35];
-      types.forEach((type, i) => {
-        const x = -2 + i * 2;
-        const button = addBox(new THREE.Vector3(1.55, .75, .35), new THREE.Vector3(x, 1.4, -1.62), colors[i], shop);
-        const label = makeTextSprite(`${cropData[type].label}\n${cropData[type].seedPrice} coins`, {
-          width: 450, height: 190, fontSize: 42, bg: "rgba(35,45,30,.94)"
-        });
-        label.position.set(x, 2.35, -1.82);
-        label.scale.set(2.4, 1.0, 1);
-        shop.add(label);
-        button.userData.interaction = () => buySeed(type);
-        button.userData.baseScale = button.scale.clone();
-        interactive.push(button);
-
-        const sack = mesh(new THREE.SphereGeometry(.42, 16, 12), mat(colors[i]), shop);
-        sack.scale.set(1, 1.2, .7);
-        sack.position.set(x, .85, -1.1);
-      });
-
-      scene.add(shop);
-    }
-    createShop();
-
-    // Sell crate
-    function createSellCrate() {
-      const crate = new THREE.Group();
-      crate.position.set(10, 0, -8);
-      const body = addBox(new THREE.Vector3(4, 2.3, 3), new THREE.Vector3(0, 1.15, 0), 0xe4a42e, crate);
-      addBox(new THREE.Vector3(4.25, .18, .18), new THREE.Vector3(0, .55, 1.53), 0x6a421f, crate);
-      addBox(new THREE.Vector3(4.25, .18, .18), new THREE.Vector3(0, 1.15, 1.53), 0x6a421f, crate);
-      addBox(new THREE.Vector3(4.25, .18, .18), new THREE.Vector3(0, 1.75, 1.53), 0x6a421f, crate);
-      const sign = makeTextSprite("SELL\nALL CROPS", {
-        bg: "rgba(65,39,16,.94)", width: 520, height: 220, fontSize: 54, border: "#ffd85c"
-      });
-      sign.position.set(0, 2.8, .2);
-      sign.scale.set(3.3, 1.4, 1);
-      crate.add(sign);
-      body.userData.interaction = sellAll;
-      interactive.push(body);
-      scene.add(crate);
-    }
-    createSellCrate();
-
-    // Fountain / watering landmark
-    function createPump() {
-      const pump = new THREE.Group();
-      pump.position.set(10, 0, 5);
-      addCylinder(1.2, .45, new THREE.Vector3(0, .23, 0), 0xa9b8bd, pump);
-      addCylinder(.42, 2.8, new THREE.Vector3(0, 1.65, 0), 0x4b8fa4, pump);
-      const spout = addBox(new THREE.Vector3(1.5, .25, .25), new THREE.Vector3(-.55, 2.55, 0), 0x4b8fa4, pump);
-      spout.rotation.z = -.12;
-      addCylinder(.35, .22, new THREE.Vector3(0, 3.05, 0), 0xe76f51, pump);
-      const sign = makeTextSprite("CLICK PLANTS\nTO WATER", {
-        width: 500, height: 190, fontSize: 46, bg: "rgba(33,74,86,.92)"
-      });
-      sign.position.set(0, 3.9, 0);
-      sign.scale.set(3.1, 1.15, 1);
-      pump.add(sign);
-      scene.add(pump);
-    }
-    createPump();
-
-    // Decorative barn
-    function createBarn() {
-      const barn = new THREE.Group();
-      barn.position.set(0, 0, -15);
-      addBox(new THREE.Vector3(8, 5, 4), new THREE.Vector3(0, 2.5, 0), 0xb9473b, barn);
-      const roof = mesh(new THREE.ConeGeometry(5.2, 2.7, 4), mat(0x5b322a), barn);
-      roof.position.set(0, 6.15, 0);
-      roof.rotation.y = Math.PI / 4;
-      addBox(new THREE.Vector3(2.6, 3.4, .25), new THREE.Vector3(0, 1.7, 2.1), 0x5f3825, barn);
-      const sign = makeTextSprite("SPROUT & SELL", { width: 650, height: 140, fontSize: 50, bg: "rgba(80,30,25,.9)" });
-      sign.position.set(0, 4.55, 2.2);
-      sign.scale.set(4.4, 1, 1);
-      barn.add(sign);
-      scene.add(barn);
-    }
-    createBarn();
-
-    // Crop model creation
-    function createCropModel(type, progress) {
-      const group = new THREE.Group();
-      const d = cropData[type];
-      const eased = THREE.MathUtils.smoothstep(progress, 0, 1);
-      const stemHeight = .25 + eased * 1.55;
-
-      if (type === "carrot") {
-        const root = mesh(new THREE.ConeGeometry(.24 + eased * .12, .3 + eased * .45, 16), mat(d.color), group);
-        root.position.y = .28 + eased * .12;
-        root.rotation.x = Math.PI;
-        for (let i = 0; i < 5; i++) {
-          const leaf = mesh(new THREE.ConeGeometry(.1, .45 + eased * .35, 10), mat(d.leaf), group);
-          leaf.position.set((i - 2) * .08, .52 + eased * .35, 0);
-          leaf.rotation.z = (i - 2) * .18;
-        }
-      } else if (type === "tomato") {
-        const stem = addCylinder(.06 + eased * .035, stemHeight, new THREE.Vector3(0, stemHeight / 2, 0), d.leaf, group, 12);
-        for (let i = 0; i < 4; i++) {
-          const branch = addBox(
-            new THREE.Vector3(.65 + eased * .35, .06, .06),
-            new THREE.Vector3(0, .55 + i * .26 * eased, 0),
-            d.leaf,
-            group,
-            i % 2 ? .55 : -.55
-          );
-          branch.rotation.z = i % 2 ? .18 : -.18;
-        }
-        const tomatoCount = progress > .72 ? 5 : progress > .45 ? 3 : 0;
-        for (let i = 0; i < tomatoCount; i++) {
-          const angle = (i / Math.max(1, tomatoCount)) * Math.PI * 2;
-          const fruit = mesh(new THREE.SphereGeometry(.16 + eased * .08, 14, 10), mat(d.color), group);
-          fruit.position.set(Math.cos(angle) * .42, .65 + (i % 2) * .45, Math.sin(angle) * .38);
-        }
-      } else {
-        const stem = addCylinder(.07 + eased * .05, stemHeight, new THREE.Vector3(0, stemHeight / 2, 0), d.leaf, group, 12);
-        for (let i = 0; i < 4; i++) {
-          const leaf = mesh(new THREE.SphereGeometry(.16 + eased * .12, 10, 8), mat(d.leaf), group);
-          leaf.scale.set(2.2, .45, .7);
-          leaf.position.set((i % 2 ? 1 : -1) * .25, .45 + i * .28, 0);
-          leaf.rotation.z = i % 2 ? .4 : -.4;
-        }
-        if (progress > .6) {
-          const head = mesh(new THREE.CylinderGeometry(.48 * eased, .48 * eased, .16, 24), mat(0x6f4323), group);
-          head.position.set(0, stemHeight + .2, 0);
-          head.rotation.x = Math.PI / 2;
-          const petalMat = mat(d.color);
-          for (let i = 0; i < 12; i++) {
-            const petal = mesh(new THREE.SphereGeometry(.16, 10, 8), petalMat, group);
-            const a = (i / 12) * Math.PI * 2;
-            petal.scale.set(1.8, .6, .5);
-            petal.position.set(Math.cos(a) * .55, stemHeight + .2 + Math.sin(a) * .55, 0);
-            petal.rotation.z = a;
-          }
-        }
-      }
-
-      group.scale.setScalar(.5 + eased * .5);
-      return group;
-    }
-
-    function refreshPlotVisual(plot) {
-      if (plot.plantObject) {
-        plot.group.remove(plot.plantObject);
-        plot.plantObject.traverse(o => {
-          if (o.geometry) o.geometry.dispose();
-        });
-      }
-      if (plot.crop) {
-        plot.plantObject = createCropModel(plot.crop, plot.progress);
-        plot.plantObject.position.y = .48;
-        plot.group.add(plot.plantObject);
-      } else {
-        plot.plantObject = null;
-      }
-      const scale = Math.max(.001, plot.water);
-      plot.waterBar.scale.x = scale;
-      plot.waterBar.position.x = -1.18 + (2.36 * scale) / 2;
-      plot.waterBar.material.color.setHex(plot.water > .25 ? 0x3ebcff : 0xff5b4a);
-    }
-
-    function buySeed(type) {
-      const d = cropData[type];
-      if (state.coins < d.seedPrice) {
-        toast(`You need ${d.seedPrice - state.coins} more coin${d.seedPrice - state.coins === 1 ? "" : "s"}.`);
-        return;
-      }
-      state.coins -= d.seedPrice;
-      state.seeds[type]++;
-      state.selected = type;
-      if (state.tutorial === 0) state.tutorial = 1;
-      burst(new THREE.Vector3(-10, 1.7, -8), d.color, 10);
-      toast(`Bought ${d.label} seeds. ${d.label} is now selected.`);
-      updateHUD();
-      saveState(true);
-    }
-
-    function interactPlot(plot) {
-      if (!plot.crop) {
-        const type = state.selected;
-        if (state.seeds[type] <= 0) {
-          toast(`No ${cropData[type].label} seeds. Buy a packet at the stall.`);
-          return;
-        }
-        state.seeds[type]--;
-        plot.crop = type;
-        plot.progress = .02;
-        plot.water = .08;
-        if (state.tutorial === 1) state.tutorial = 2;
-        refreshPlotVisual(plot);
-        burst(plot.group.position.clone().add(new THREE.Vector3(0, .6, 0)), 0x9a623c, 8);
-        toast(`${cropData[type].label} planted. Click it again to water.`);
-      } else if (plot.progress >= 1) {
-        const type = plot.crop;
-        state.produce[type]++;
-        plot.crop = null;
-        plot.progress = 0;
-        plot.water = 0;
-        refreshPlotVisual(plot);
-        burst(plot.group.position.clone().add(new THREE.Vector3(0, 1, 0)), cropData[type].color, 18);
-        toast(`Harvested 1 ${cropData[type].label}! Take it to the sell crate.`);
-        state.tutorial = Math.max(state.tutorial, 4);
-      } else {
-        const oldWater = plot.water;
-        plot.water = Math.min(1, plot.water + .58);
-        if (state.tutorial === 2) state.tutorial = 3;
-        refreshPlotVisual(plot);
-        waterSplash(plot.group.position.clone().add(new THREE.Vector3(0, .9, 0)));
-        toast(oldWater > .82 ? "That plot is already soaked." : "Watered! Growth has resumed.");
-      }
-      updateHUD();
-      saveState();
-    }
-
-    function sellAll() {
-      let total = 0;
-      const sold = [];
-      for (const [type, count] of Object.entries(state.produce)) {
-        if (count > 0) {
-          total += count * cropData[type].sellPrice;
-          sold.push(`${count} ${cropData[type].label}`);
-          state.produce[type] = 0;
-        }
-      }
-      if (total === 0) {
-        toast("The sell crate is hungry, but your basket is empty.");
-        return;
-      }
-      state.coins += total;
-      state.tutorial = 5;
-      burst(new THREE.Vector3(10, 2, -8), 0xffdf51, 26);
-      toast(`Sold ${sold.join(", ")} for ${total} coins!`);
-      updateHUD();
-      saveState(true);
-    }
-
-    function burst(position, color, count = 12) {
-      for (let i = 0; i < count; i++) {
-        const p = mesh(new THREE.SphereGeometry(.045, 7, 5), mat(color, .4), scene);
-        p.position.copy(position);
-        p.userData.velocity = new THREE.Vector3(
-          (Math.random() - .5) * 2.2,
-          .7 + Math.random() * 1.8,
-          (Math.random() - .5) * 2.2
-        );
-        p.userData.life = .6 + Math.random() * .6;
-        particles.push(p);
-      }
-    }
-
-    function waterSplash(position) {
-      for (let i = 0; i < 16; i++) {
-        const p = mesh(new THREE.SphereGeometry(.035, 7, 5), mat(0x56cfff, .2), scene);
-        p.position.copy(position);
-        p.userData.velocity = new THREE.Vector3(
-          (Math.random() - .5) * 1.6,
-          .6 + Math.random() * 1.1,
-          (Math.random() - .5) * 1.6
-        );
-        p.userData.life = .45 + Math.random() * .35;
-        particles.push(p);
-      }
-    }
-
-    function updateParticles(dt) {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.userData.life -= dt;
-        p.userData.velocity.y -= 3.4 * dt;
-        p.position.addScaledVector(p.userData.velocity, dt);
-        p.scale.setScalar(Math.max(.01, p.userData.life));
-        if (p.userData.life <= 0) {
-          scene.remove(p);
-          p.geometry.dispose();
-          p.material.dispose();
-          particles.splice(i, 1);
-        }
-      }
-    }
-
-    function updatePlots(dt) {
-      for (const plot of plots) {
-        if (!plot.crop || plot.progress >= 1) continue;
-        plot.water = Math.max(0, plot.water - dt * .018);
-        if (plot.water > 0) {
-          plot.progress = Math.min(1, plot.progress + dt / cropData[plot.crop].growTime);
-        }
-        plot.dryPulse += dt;
-
-        // Rebuild only when growth changes enough
-        const stage = Math.floor(plot.progress * 10);
-        if (stage !== plot.lastStage) {
-          plot.lastStage = stage;
-          refreshPlotVisual(plot);
-          if (plot.progress >= 1) {
-            burst(plot.group.position.clone().add(new THREE.Vector3(0, 1.7, 0)), cropData[plot.crop].color, 20);
-            toast(`${cropData[plot.crop].label} is ready to harvest!`);
-          }
-        } else {
-          const scale = Math.max(.001, plot.water);
-          plot.waterBar.scale.x = scale;
-          plot.waterBar.position.x = -1.18 + (2.36 * scale) / 2;
-          plot.waterBar.material.color.setHex(plot.water > .25 ? 0x3ebcff : 0xff5b4a);
-        }
-
-        if (plot.plantObject && plot.progress >= 1) {
-          plot.plantObject.rotation.y = Math.sin(performance.now() * .003 + plot.index) * .12;
-          plot.plantObject.position.y = .5 + Math.sin(performance.now() * .005 + plot.index) * .05;
-        }
-      }
-    }
-
-    // Desktop movement and look
-    document.addEventListener("keydown", e => {
-      keys[e.code] = true;
-      if (e.code === "KeyE") interactFromCamera();
-      if (e.code === "Digit1") selectSeed("carrot");
-      if (e.code === "Digit2") selectSeed("tomato");
-      if (e.code === "Digit3") selectSeed("sunflower");
-    });
-    document.addEventListener("keyup", e => keys[e.code] = false);
-
-    function selectSeed(type) {
-      state.selected = type;
-      toast(`${cropData[type].label} selected.`);
-      updateHUD();
-      saveState();
-    }
-
-    function applyLook(deltaX, deltaY, sensitivity = .0022) {
-      yaw += deltaX * sensitivity;
-      pitch -= deltaY * sensitivity;
-      pitch = THREE.MathUtils.clamp(pitch, -1.35, 1.35);
-      player.rotation.y = yaw;
-      camera.rotation.x = pitch;
-    }
-
-    document.addEventListener("mousemove", e => {
-      if (renderer.xr.isPresenting) return;
-
-      if (document.pointerLockElement === renderer.domElement) {
-        applyLook(e.movementX, e.movementY);
-        return;
-      }
-
-      if (dragLook) {
-        const dx = e.clientX - lastPointerX;
-        const dy = e.clientY - lastPointerY;
-        lastPointerX = e.clientX;
-        lastPointerY = e.clientY;
-        applyLook(dx, dy, .004);
-      }
-    });
-
-    renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
-
-    renderer.domElement.addEventListener("mousedown", e => {
-      if (renderer.xr.isPresenting) return;
-
-      if (e.button === 2) {
-        dragLook = true;
-        lastPointerX = e.clientX;
-        lastPointerY = e.clientY;
-        return;
-      }
-
-      if (e.button !== 0) return;
-
-      if (document.pointerLockElement === renderer.domElement) {
-        interactFromCamera();
-      } else {
-        renderer.domElement.requestPointerLock?.().catch?.(() => {});
-        interactFromScreenPoint(e.clientX, e.clientY);
-      }
-    });
-
-    document.addEventListener("mouseup", e => {
-      if (e.button === 2) dragLook = false;
-    });
-
-    document.addEventListener("mouseleave", () => {
-      dragLook = false;
-    });
-
-    // Touch fallback
-    renderer.domElement.addEventListener("touchend", e => {
-      if (!renderer.xr.isPresenting) interactFromCamera();
-    }, { passive: true });
-
-    function interactFromScreenPoint(clientX, clientY) {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const pointer = new THREE.Vector2(
-        ((clientX - rect.left) / rect.width) * 2 - 1,
-        -((clientY - rect.top) / rect.height) * 2 + 1
-      );
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      }
-    }
-
-    function interactFromCamera() {
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      } else {
-        toast("Nothing useful in reach.");
-      }
-    }
-
-    function punchObject(object) {
-      animateHandUse();
-      if (!object.userData.baseScale) object.userData.baseScale = object.scale.clone();
-      object.scale.multiplyScalar(.88);
-      setTimeout(() => {
-        if (object?.scale && object.userData.baseScale) object.scale.copy(object.userData.baseScale);
-      }, 110);
-    }
-
-    function updateDesktopMovement(dt) {
-      if (renderer.xr.isPresenting) return;
-      const speed = (keys.ShiftLeft ? 6.8 : 4.2) * dt;
-
-      if (keys.ArrowLeft) yaw += 1.8 * dt;
-      if (keys.ArrowRight) yaw -= 1.8 * dt;
-      if (keys.ArrowUp) pitch = THREE.MathUtils.clamp(pitch + 1.5 * dt, -1.35, 1.35);
-      if (keys.ArrowDown) pitch = THREE.MathUtils.clamp(pitch - 1.5 * dt, -1.35, 1.35);
-      player.rotation.y = yaw;
-      camera.rotation.x = pitch;
-
-      const move = new THREE.Vector3();
-      if (keys.KeyW) move.z -= 1;
-      if (keys.KeyS) move.z += 1;
-      if (keys.KeyA) move.x -= 1;
-      if (keys.KeyD) move.x += 1;
-      if (move.lengthSq() > 0) {
-        move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        player.position.addScaledVector(move, speed);
-      }
-      clampPlayer();
-    }
-
-    function clampPlayer() {
-      player.position.x = THREE.MathUtils.clamp(player.position.x, -18.5, 18.5);
-      player.position.z = THREE.MathUtils.clamp(player.position.z, -16.5, 16.5);
-      player.position.y = 0;
-    }
-
-    // VR Controllers
-    const controllers = [];
-    for (let i = 0; i < 2; i++) {
-      const controller = renderer.xr.getController(i);
-      const side = i === 0 ? -1 : 1;
-
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -1)
-      ]);
-      const line = new THREE.Line(
-        lineGeo,
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .75 })
-      );
-      line.name = "ray";
-      line.scale.z = 5;
-      controller.add(line);
-
-      const vrHand = createCartoonHand(side, true);
-      vrHand.position.set(0, -.035, -.075);
-      vrHand.rotation.set(-1.35, 0, side * .08);
-      controller.add(vrHand);
-      controller.userData.hand = vrHand;
-      controller.userData.handBaseRotationX = vrHand.rotation.x;
-
-      controller.addEventListener("selectstart", () => {
-        const hand = controller.userData.hand;
-        if (hand) {
-          hand.rotation.x = controller.userData.handBaseRotationX - .45;
-          setTimeout(() => {
-            if (hand) hand.rotation.x = controller.userData.handBaseRotationX;
-          }, 130);
-        }
-        interactFromController(controller);
-      });
-
-      player.add(controller);
-      controllers.push(controller);
-    }
-
-    function interactFromController(controller) {
-      const tempMatrix = new THREE.Matrix4().identity().extractRotation(controller.matrixWorld);
-      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      }
-    }
-
-    function updateVRMovement(dt) {
-      if (!renderer.xr.isPresenting) return;
-      const session = renderer.xr.getSession();
-      if (!session) return;
-
-      let moveX = 0, moveZ = 0, turnX = 0;
-      for (const source of session.inputSources) {
-        const gp = source.gamepad;
-        if (!gp) continue;
-        const axes = gp.axes;
-        const handed = source.handedness;
-
-        const ax = Math.abs(axes[2] ?? 0) > Math.abs(axes[0] ?? 0) ? (axes[2] ?? 0) : (axes[0] ?? 0);
-        const ay = Math.abs(axes[3] ?? 0) > Math.abs(axes[1] ?? 0) ? (axes[3] ?? 0) : (axes[1] ?? 0);
-
-        if (handed === "left") {
-          moveX = ax;
-          moveZ = ay;
-        } else if (handed === "right") {
-          turnX = ax;
-        }
-      }
-
-      const dead = .18;
-      if (Math.abs(moveX) < dead) moveX = 0;
-      if (Math.abs(moveZ) < dead) moveZ = 0;
-      if (moveX || moveZ) {
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
-        forward.y = 0;
-        forward.normalize();
-        const right = new THREE.Vector3(forward.z, 0, -forward.x);
-        player.position.addScaledVector(forward, -moveZ * dt * 3.2);
-        player.position.addScaledVector(right, moveX * dt * 3.2);
-      }
-
-      const shouldTurn = Math.abs(turnX) > .72;
-      if (shouldTurn && !lastRightTurn) {
-        player.rotation.y += Math.sign(turnX) * THREE.MathUtils.degToRad(30);
-        yaw = player.rotation.y;
-      }
-      lastRightTurn = shouldTurn;
-      clampPlayer();
-    }
-
-    function updateHover() {
-      if (renderer.xr.isPresenting) return;
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      const next = hit?.object || null;
-      if (hovered !== next) {
-        if (hovered?.material?.emissive) hovered.material.emissive.setHex(0x000000);
-        hovered = next;
-        if (hovered?.material?.emissive) hovered.material.emissive.setHex(0x333333);
-      }
-    }
-
-    // VR startup and diagnostics
-    const vrStartButton = document.getElementById("vrStartButton");
-    const vrStatus = document.getElementById("vrStatus");
-    const openTabButton = document.getElementById("openTabButton");
-    let activeXRSession = null;
-
-    function setVRStatus(message, good = false) {
-      vrStatus.textContent = message;
-      vrStatus.style.color = good ? "#aaffbd" : "#ffe1a8";
-    }
-
-    async function checkVRSupport() {
-      vrStartButton.disabled = true;
-
-      if (!window.isSecureContext) {
-        setVRStatus(
-          `VR BLOCKED: this page is using ${location.protocol || "an insecure connection"}. ` +
-          "Upload index.html to an HTTPS site such as GitHub Pages, or run it on localhost."
-        );
-        vrStartButton.textContent = "HTTPS Required";
-        return;
-      }
-
-      if (!("xr" in navigator)) {
-        setVRStatus(
-          "WebXR is not available in this browser tab. Open the hosted game directly in your headset browser, not inside an embedded preview."
-        );
-        vrStartButton.textContent = "WebXR Unavailable";
-        return;
-      }
-
-      if (window.top !== window.self) {
-        setVRStatus(
-          "This game is embedded in another page. Embedded previews can block XR spatial tracking. Press “Open Game in New Tab”, then try VR again."
-        );
-      }
-
-      try {
-        const supported = await navigator.xr.isSessionSupported("immersive-vr");
-        if (!supported) {
-          setVRStatus(
-            "WebXR exists, but this tab cannot see an immersive VR headset. Open this HTTPS page in the headset browser, or connect/enable your PC VR runtime."
-          );
-          vrStartButton.textContent = "Headset Not Detected";
-          return;
-        }
-
-        vrStartButton.disabled = false;
-        vrStartButton.textContent = "Enter VR";
-        setVRStatus(
-          window.top !== window.self
-            ? "VR was detected, but the embedded page may still block it. A new tab is safer."
-            : "VR detected and ready. Press Enter VR.",
-          true
-        );
-      } catch (error) {
-        setVRStatus(`VR check failed: ${error.name || "Error"}: ${error.message || error}`);
-        vrStartButton.textContent = "VR Check Failed";
-      }
-    }
-
-    async function startVR() {
-      if (!navigator.xr || !window.isSecureContext) {
-        await checkVRSupport();
-        return;
-      }
-
-      vrStartButton.disabled = true;
-      vrStartButton.textContent = "Starting VR…";
-      setVRStatus("Requesting permission from the headset…", true);
-
-      try {
-        const session = await navigator.xr.requestSession("immersive-vr", {
-          requiredFeatures: ["local-floor"],
-          optionalFeatures: ["bounded-floor", "hand-tracking"]
-        });
-        activeXRSession = session;
-        await renderer.xr.setSession(session);
-
-        session.addEventListener("end", () => {
-          activeXRSession = null;
-          vrStartButton.textContent = "Enter VR";
-          vrStartButton.disabled = false;
-          setVRStatus("VR session ended. You can enter again.", true);
-        }, { once: true });
-      } catch (error) {
-        vrStartButton.disabled = false;
-        vrStartButton.textContent = "Try Enter VR Again";
-
-        let hint = "";
-        if (error.name === "SecurityError") {
-          hint = " Open the game directly in a new tab on an HTTPS site.";
-        } else if (error.name === "NotAllowedError") {
-          hint = " Allow the browser's VR/XR permission and press the button again.";
-        } else if (error.name === "NotSupportedError") {
-          hint = " The browser or headset runtime rejected immersive-vr or local-floor.";
-        } else if (error.name === "InvalidStateError") {
-          hint = " Another XR session may already be open.";
-        }
-
-        setVRStatus(`Could not enter VR: ${error.name || "Error"}: ${error.message || error}.${hint}`);
-      }
-    }
-
-    vrStartButton.addEventListener("click", startVR);
-    openTabButton.addEventListener("click", () => {
-      const opened = window.open(location.href, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        setVRStatus("The browser blocked the new tab. Use the browser menu and choose Open in new tab.");
-      }
-    });
-
-    renderer.xr.addEventListener("sessionstart", () => {
-      document.getElementById("startScreen").style.display = "none";
-      document.getElementById("crosshair").style.display = "none";
-      desktopHands.visible = false;
-      player.position.set(0, 0, 8);
-    });
-    renderer.xr.addEventListener("sessionend", () => {
-      document.getElementById("crosshair").style.display = "block";
-      document.getElementById("startScreen").style.display = "grid";
-      desktopHands.visible = true;
-    });
-
-    checkVRSupport();
-
-    document.getElementById("playButton").addEventListener("click", () => {
-      document.getElementById("startScreen").style.display = "none";
-      const lockAttempt = renderer.domElement.requestPointerLock?.();
-      if (lockAttempt?.catch) {
-        lockAttempt.catch(() => toast("Pointer lock was blocked. Hold right mouse and drag to look."));
-      }
-      setTimeout(() => {
-        if (document.pointerLockElement !== renderer.domElement) {
-          toast("Camera tip: click the game to lock the mouse, or hold right-click and drag.");
-        }
-      }, 700);
-    });
-
-    document.getElementById("resetButton").addEventListener("click", () => {
-      localStorage.removeItem("sproutSellVRSave");
-      state = structuredClone(defaultState);
-      for (const plot of plots) {
-        plot.crop = null;
-        plot.progress = 0;
-        plot.water = 0;
-        refreshPlotVisual(plot);
-      }
-      updateHUD();
-      toast("Save reset. Fresh soil, fresh wallet.");
-    });
-
-    addEventListener("resize", () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
-
-    updateHUD();
-
-    renderer.setAnimationLoop(() => {
-      const dt = Math.min(clock.getDelta(), .05);
-      updateDesktopMovement(dt);
-      updateVRMovement(dt);
-      updatePlots(dt);
-      updateParticles(dt);
-      updateHands(dt);
-      updateHover();
-      updateHUD();
-      renderer.render(scene, camera);
-    });
-  </script>
+    const buttons=g.buttons;
+    if(pressed(1,4,buttons)){selectedMove=(selectedMove+1)%4;highlightSelected();toast(TECHNIQUES[save.technique].moves[selectedMove].name)}
+    if(pressed(1,5,buttons))awaken();
+    blocking=blocking||!!buttons[1]?.pressed;
+  }
+}
+function pressed(hand,index,buttons){
+  const now=!!buttons[index]?.pressed,was=!!prevButtons[hand][index];
+  prevButtons[hand][index]=now;return now&&!was;
+}
+function updateQuestMarker(t){
+  const marker=questNpc.children.find(x=>x.userData.marker);
+  if(marker){marker.rotation.y=t*2;marker.position.y=2.55+Math.sin(t*3)*.12}
+  const near=playerRig.position.distanceTo(questNpc.position)<4.5;
+  $("#prompt").style.opacity=near&&!inVR?1:0;
+  $("#prompt").textContent=quest.active?"E · CHECK MISSION":"E · ACCEPT MISSION";
+}
+function updateHud(){
+  const t=TECHNIQUES[save.technique];
+  $("#levelStat").textContent=`LV. ${save.level}`;
+  $("#gradeStat").textContent=save.grade;
+  $("#coinStat").textContent=`¥ ${save.coins}`;
+  $("#masteryStat").textContent=`MASTERY ${save.mastery}`;
+  $("#hpFill").style.width=`${player.hp/player.maxHp*100}%`;$("#hpText").textContent=`${Math.ceil(player.hp)}/${player.maxHp}`;
+  $("#ceFill").style.width=`${player.ce/player.maxCe*100}%`;$("#ceText").textContent=`${Math.floor(player.ce)}/${player.maxCe}`;
+  $("#awFill").style.width=`${player.aw}%`;$("#awText").textContent=`${Math.floor(player.aw)}%`;
+  $("#questTitle").textContent=quest.active?(quest.boss?"SPECIAL GRADE MISSION":"EXORCISM MISSION"):"NO ACTIVE MISSION";
+  $("#questText").textContent=quest.active?`Defeat curses · ${quest.kills}/${quest.target}`:"Find the glowing mission broker.";
+  document.querySelectorAll(".slot").forEach((s,i)=>{
+    s.classList.toggle("active",i===selectedMove);
+    const cd=s.querySelector(".cd");
+    cd.textContent=cooldowns[i].toFixed(1);cd.classList.toggle("hidden",cooldowns[i]<=0);
+  });
+  updateVRHud(t);
+}
+function highlightSelected(){document.querySelectorAll(".slot").forEach((s,i)=>s.classList.toggle("active",i===selectedMove))}
+function updateVRHud(t){
+  if(!vrHudCtx)return;
+  const c=vrHudCtx.canvas,ctx=vrHudCtx;
+  ctx.clearRect(0,0,c.width,c.height);
+  const grd=ctx.createLinearGradient(0,0,c.width,c.height);grd.addColorStop(0,"rgba(14,16,38,.96)");grd.addColorStop(1,"rgba(6,7,19,.94)");
+  ctx.fillStyle=grd;ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle="#5865a8";ctx.lineWidth=5;ctx.strokeRect(4,4,c.width-8,c.height-8);
+  ctx.fillStyle="#54e7ff";ctx.font="bold 30px system-ui";ctx.fillText(`${save.grade}  ·  LV ${save.level}`,30,48);
+  ctx.fillStyle="white";ctx.font="900 44px system-ui";ctx.fillText(t.moves[selectedMove].name,30,102);
+  drawCanvasBar(ctx,30,140,708,40,player.hp/player.maxHp,"#ff5074",`HP ${Math.ceil(player.hp)}`);
+  drawCanvasBar(ctx,30,194,708,40,player.ce/player.maxCe,"#45dcff",`CE ${Math.floor(player.ce)}`);
+  drawCanvasBar(ctx,30,248,708,40,player.aw/100,"#b05cff",`AWAKEN ${Math.floor(player.aw)}%`);
+  ctx.fillStyle="#d9ddf7";ctx.font="bold 24px system-ui";
+  ctx.fillText(quest.active?`MISSION ${quest.kills}/${quest.target}`:"Y: ACCEPT MISSION",30,340);
+  ctx.textAlign="right";ctx.fillText("A: NEXT MOVE  ·  B: AWAKEN",738,340);ctx.textAlign="left";
+  vrHudTexture.needsUpdate=true;
+}
+function drawCanvasBar(ctx,x,y,w,h,p,color,label){
+  ctx.fillStyle="rgba(255,255,255,.09)";ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=color;ctx.fillRect(x,y,w*clamp(p,0,1),h);
+  ctx.fillStyle="white";ctx.font="900 23px system-ui";ctx.fillText(label,x+12,y+28);
+}
+function updateEffects(dt){
+  for(let i=effects.length-1;i>=0;i--){
+    const e=effects[i];e.life-=dt;
+    if(e.update)e.update(dt,e);
+    if(e.life<=0){e.parent.remove(e.obj);effects.splice(i,1)}
+  }
+}
+function addEffect(obj,life,update,parent=effectRoot){parent.add(obj);effects.push({obj,life,max:life,update,parent});return obj}
+function projectile(origin,dir,color,speed,size,onHit,shape="orb"){
+  let mesh;
+  if(shape==="hound"){
+    mesh=new THREE.Group();
+    const b=new THREE.Mesh(new THREE.SphereGeometry(size,10,8),mat(color,.3,.1,color,2));b.scale.set(1.8,.8,1);mesh.add(b);
+  }else mesh=new THREE.Mesh(new THREE.SphereGeometry(size,12,10),mat(color,.25,.1,color,2.5));
+  mesh.position.copy(origin);const life=2.2;
+  addEffect(mesh,life,(dt,e)=>{
+    mesh.position.addScaledVector(dir,speed*dt);
+    const enemy=enemies.find(x=>x.alive&&x.mesh.position.distanceTo(mesh.position)<(x.boss?1.4:.9)+size);
+    if(enemy||e.life<.05){if(onHit)onHit(mesh.position.clone(),enemy);e.life=0}
+  });return mesh;
+}
+function explosion(pos,color,radius){
+  const s=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.75,wireframe:true}));
+  s.position.copy(pos);addEffect(s,.45,(dt,e)=>{const p=1-e.life/e.max;s.scale.setScalar(lerp(.2,radius,p));s.material.opacity=1-p});
+  burst(pos,color,28,.18,radius);
+}
+function burst(pos,color,count=20,life=.3,speed=3){
+  const geo=new THREE.BufferGeometry(),arr=new Float32Array(count*3),vel=[];
+  for(let i=0;i<count;i++){arr[i*3]=arr[i*3+1]=arr[i*3+2]=0;vel.push(new THREE.Vector3(rand(-1,1),rand(-.2,1),rand(-1,1)).normalize().multiplyScalar(rand(speed*.4,speed)))}
+  geo.setAttribute("position",new THREE.BufferAttribute(arr,3));
+  const pts=new THREE.Points(geo,new THREE.PointsMaterial({color,size:.09,transparent:true,opacity:1}));
+  pts.position.copy(pos);addEffect(pts,life,(dt,e)=>{
+    const a=pts.geometry.attributes.position.array;
+    vel.forEach((v,i)=>{a[i*3]+=v.x*dt;a[i*3+1]+=v.y*dt;a[i*3+2]+=v.z*dt});
+    pts.geometry.attributes.position.needsUpdate=true;pts.material.opacity=e.life/e.max;
+  });
+}
+function slashFx(origin,dir,color,size=1){
+  const mesh=new THREE.Mesh(new THREE.TorusGeometry(size,.045,8,38,Math.PI*1.35),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.85,side:THREE.DoubleSide}));
+  mesh.position.copy(origin).addScaledVector(dir,size*.7);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);mesh.rotation.z=rand(-.8,.8);
+  addEffect(mesh,.28,(dt,e)=>{mesh.scale.multiplyScalar(1+dt*4);mesh.material.opacity=e.life/e.max});
+}
+function beamFx(origin,dir,color,range,width){
+  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(width*.16,width*.45,range,18,1,true),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.72,side:THREE.DoubleSide}));
+  mesh.position.copy(origin).addScaledVector(dir,range/2);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+  addEffect(mesh,.42,(dt,e)=>{mesh.material.opacity=e.life/e.max;mesh.scale.x=mesh.scale.z=1+(1-e.life/e.max)*1.8});
+}
+function ringFx(pos,color,radius){
+  const mesh=new THREE.Mesh(new THREE.RingGeometry(.5,.75,48),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.85,side:THREE.DoubleSide}));
+  mesh.rotation.x=-Math.PI/2;mesh.position.copy(pos);
+  addEffect(mesh,.65,(dt,e)=>{const p=1-e.life/e.max;mesh.scale.setScalar(lerp(.2,radius,p));mesh.material.opacity=1-p});
+}
+function domainDome(pos,color,life){
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,32,18,0,TAU,0,Math.PI/2),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.17,side:THREE.DoubleSide,wireframe:true}));
+  mesh.position.copy(pos);addEffect(mesh,life,(dt,e)=>{
+    const p=1-e.life/e.max;if(p<.12)mesh.scale.setScalar(lerp(.1,16,p/.12));
+    mesh.rotation.y+=dt*.2;mesh.material.opacity=e.life<1?.17*e.life:.17;
+  });
+}
+function aura(target,color,life){
+  const mesh=new THREE.Mesh(new THREE.TorusKnotGeometry(.75,.08,80,8),new THREE.MeshBasicMaterial({color,wireframe:true,transparent:true,opacity:.6}));
+  addEffect(mesh,life,(dt,e)=>{mesh.position.copy(target.position).add(new THREE.Vector3(0,1,0));mesh.rotation.x+=dt;mesh.rotation.y+=dt*1.4;mesh.material.opacity=Math.min(.6,e.life)},effectRoot);
+}
+function floatingText(pos,text,color){
+  const c=document.createElement("canvas");c.width=256;c.height=128;const ctx=c.getContext("2d");
+  ctx.font="900 72px system-ui";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=12;ctx.strokeText(text,128,86);
+  ctx.fillStyle="#"+color.toString(16).padStart(6,"0");ctx.fillText(text,128,86);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+  spr.position.copy(pos);spr.scale.set(1.6,.8,1);
+  addEffect(spr,.8,(dt,e)=>{spr.position.y+=dt*1.1;spr.material.opacity=e.life/e.max});
+}
+function animate(){
+  renderer.setAnimationLoop(()=>{
+    const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
+    if(running&&!paused){
+      updatePlayer(dt);updateEnemies(dt,t);updateEffects(dt);updateQuestMarker(t);updateHud();
+    }else if(!paused)updateEffects(dt);
+    renderer.render(scene,camera);
+  });
+}
+</script>
 </body>
 </html>
