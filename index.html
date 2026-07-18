@@ -278,6 +278,108 @@
     camera.position.set(0, 2.25, 0);
     player.add(camera);
 
+    function createCartoonHand(side = 1, vrHand = false) {
+      const hand = new THREE.Group();
+      const skin = new THREE.MeshStandardMaterial({
+        color: 0xf0b58c,
+        roughness: .8
+      });
+      const cuffMat = new THREE.MeshStandardMaterial({
+        color: 0x4fa85b,
+        roughness: .75
+      });
+
+      const palm = new THREE.Mesh(
+        new THREE.BoxGeometry(vrHand ? .105 : .15, vrHand ? .13 : .18, vrHand ? .09 : .11),
+        skin
+      );
+      palm.position.set(0, 0, 0);
+      palm.rotation.x = -.18;
+      palm.castShadow = true;
+      hand.add(palm);
+
+      for (let i = 0; i < 4; i++) {
+        const finger = new THREE.Mesh(
+          new THREE.CapsuleGeometry(vrHand ? .014 : .019, vrHand ? .07 : .09, 5, 8),
+          skin
+        );
+        finger.position.set(
+          (i - 1.5) * (vrHand ? .025 : .034),
+          vrHand ? .095 : .135,
+          -.018
+        );
+        finger.rotation.x = -.14 - i * .02;
+        finger.castShadow = true;
+        hand.add(finger);
+      }
+
+      const thumb = new THREE.Mesh(
+        new THREE.CapsuleGeometry(vrHand ? .016 : .021, vrHand ? .055 : .07, 5, 8),
+        skin
+      );
+      thumb.position.set(side * (vrHand ? .072 : .098), .025, -.005);
+      thumb.rotation.z = side * -.85;
+      thumb.rotation.x = -.15;
+      thumb.castShadow = true;
+      hand.add(thumb);
+
+      const cuff = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          vrHand ? .055 : .075,
+          vrHand ? .065 : .085,
+          vrHand ? .095 : .12,
+          12
+        ),
+        cuffMat
+      );
+      cuff.position.y = vrHand ? -.105 : -.145;
+      cuff.castShadow = true;
+      hand.add(cuff);
+
+      hand.userData.side = side;
+      return hand;
+    }
+
+    const desktopHands = new THREE.Group();
+    const desktopLeftHand = createCartoonHand(-1, false);
+    const desktopRightHand = createCartoonHand(1, false);
+
+    desktopLeftHand.position.set(-.34, -.38, -.68);
+    desktopRightHand.position.set(.34, -.38, -.68);
+    desktopLeftHand.rotation.set(-.35, -.15, -.08);
+    desktopRightHand.rotation.set(-.35, .15, .08);
+
+    desktopHands.add(desktopLeftHand, desktopRightHand);
+    camera.add(desktopHands);
+
+    function animateHandUse() {
+      handUse = 1;
+    }
+
+    function updateHands(dt) {
+      handUse = Math.max(0, handUse - dt * 5.5);
+
+      const walking =
+        !renderer.xr.isPresenting &&
+        (keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD);
+
+      if (walking) walkBobTime += dt * 9;
+      const bob = walking ? Math.sin(walkBobTime) * .018 : 0;
+      const sway = walking ? Math.cos(walkBobTime * .5) * .012 : 0;
+
+      desktopLeftHand.position.set(
+        -.34 - sway,
+        -.38 - bob,
+        -.68
+      );
+      desktopRightHand.position.set(
+        .34 + sway,
+        -.38 + bob - handUse * .035,
+        -.68 - handUse * .23
+      );
+      desktopRightHand.rotation.x = -.35 - handUse * .35;
+    }
+
     const clock = new THREE.Clock();
     const raycaster = new THREE.Raycaster();
     raycaster.far = 5.5;
@@ -294,6 +396,8 @@
     let dragLook = false;
     let lastPointerX = 0;
     let lastPointerY = 0;
+    let handUse = 0;
+    let walkBobTime = 0;
 
     const cropData = {
       carrot: {
@@ -855,447 +959,3 @@
         particles.push(p);
       }
     }
-
-    function updateParticles(dt) {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.userData.life -= dt;
-        p.userData.velocity.y -= 3.4 * dt;
-        p.position.addScaledVector(p.userData.velocity, dt);
-        p.scale.setScalar(Math.max(.01, p.userData.life));
-        if (p.userData.life <= 0) {
-          scene.remove(p);
-          p.geometry.dispose();
-          p.material.dispose();
-          particles.splice(i, 1);
-        }
-      }
-    }
-
-    function updatePlots(dt) {
-      for (const plot of plots) {
-        if (!plot.crop || plot.progress >= 1) continue;
-        plot.water = Math.max(0, plot.water - dt * .018);
-        if (plot.water > 0) {
-          plot.progress = Math.min(1, plot.progress + dt / cropData[plot.crop].growTime);
-        }
-        plot.dryPulse += dt;
-
-        // Rebuild only when growth changes enough
-        const stage = Math.floor(plot.progress * 10);
-        if (stage !== plot.lastStage) {
-          plot.lastStage = stage;
-          refreshPlotVisual(plot);
-          if (plot.progress >= 1) {
-            burst(plot.group.position.clone().add(new THREE.Vector3(0, 1.7, 0)), cropData[plot.crop].color, 20);
-            toast(`${cropData[plot.crop].label} is ready to harvest!`);
-          }
-        } else {
-          const scale = Math.max(.001, plot.water);
-          plot.waterBar.scale.x = scale;
-          plot.waterBar.position.x = -1.18 + (2.36 * scale) / 2;
-          plot.waterBar.material.color.setHex(plot.water > .25 ? 0x3ebcff : 0xff5b4a);
-        }
-
-        if (plot.plantObject && plot.progress >= 1) {
-          plot.plantObject.rotation.y = Math.sin(performance.now() * .003 + plot.index) * .12;
-          plot.plantObject.position.y = .5 + Math.sin(performance.now() * .005 + plot.index) * .05;
-        }
-      }
-    }
-
-    // Desktop movement and look
-    document.addEventListener("keydown", e => {
-      keys[e.code] = true;
-      if (e.code === "KeyE") interactFromCamera();
-      if (e.code === "Digit1") selectSeed("carrot");
-      if (e.code === "Digit2") selectSeed("tomato");
-      if (e.code === "Digit3") selectSeed("sunflower");
-    });
-    document.addEventListener("keyup", e => keys[e.code] = false);
-
-    function selectSeed(type) {
-      state.selected = type;
-      toast(`${cropData[type].label} selected.`);
-      updateHUD();
-      saveState();
-    }
-
-    function applyLook(deltaX, deltaY, sensitivity = .0022) {
-      yaw -= deltaX * sensitivity;
-      pitch -= deltaY * sensitivity;
-      pitch = THREE.MathUtils.clamp(pitch, -1.35, 1.35);
-      player.rotation.y = yaw;
-      camera.rotation.x = pitch;
-    }
-
-    document.addEventListener("mousemove", e => {
-      if (renderer.xr.isPresenting) return;
-
-      if (document.pointerLockElement === renderer.domElement) {
-        applyLook(e.movementX, e.movementY);
-        return;
-      }
-
-      if (dragLook) {
-        const dx = e.clientX - lastPointerX;
-        const dy = e.clientY - lastPointerY;
-        lastPointerX = e.clientX;
-        lastPointerY = e.clientY;
-        applyLook(dx, dy, .004);
-      }
-    });
-
-    renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
-
-    renderer.domElement.addEventListener("mousedown", e => {
-      if (renderer.xr.isPresenting) return;
-
-      if (e.button === 2) {
-        dragLook = true;
-        lastPointerX = e.clientX;
-        lastPointerY = e.clientY;
-        return;
-      }
-
-      if (e.button !== 0) return;
-
-      if (document.pointerLockElement === renderer.domElement) {
-        interactFromCamera();
-      } else {
-        renderer.domElement.requestPointerLock?.().catch?.(() => {});
-        interactFromScreenPoint(e.clientX, e.clientY);
-      }
-    });
-
-    document.addEventListener("mouseup", e => {
-      if (e.button === 2) dragLook = false;
-    });
-
-    document.addEventListener("mouseleave", () => {
-      dragLook = false;
-    });
-
-    // Touch fallback
-    renderer.domElement.addEventListener("touchend", e => {
-      if (!renderer.xr.isPresenting) interactFromCamera();
-    }, { passive: true });
-
-    function interactFromScreenPoint(clientX, clientY) {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const pointer = new THREE.Vector2(
-        ((clientX - rect.left) / rect.width) * 2 - 1,
-        -((clientY - rect.top) / rect.height) * 2 + 1
-      );
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      }
-    }
-
-    function interactFromCamera() {
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      } else {
-        toast("Nothing useful in reach.");
-      }
-    }
-
-    function punchObject(object) {
-      if (!object.userData.baseScale) object.userData.baseScale = object.scale.clone();
-      object.scale.multiplyScalar(.88);
-      setTimeout(() => {
-        if (object?.scale && object.userData.baseScale) object.scale.copy(object.userData.baseScale);
-      }, 110);
-    }
-
-    function updateDesktopMovement(dt) {
-      if (renderer.xr.isPresenting) return;
-      const speed = (keys.ShiftLeft ? 6.8 : 4.2) * dt;
-
-      if (keys.ArrowLeft) yaw += 1.8 * dt;
-      if (keys.ArrowRight) yaw -= 1.8 * dt;
-      if (keys.ArrowUp) pitch = THREE.MathUtils.clamp(pitch + 1.5 * dt, -1.35, 1.35);
-      if (keys.ArrowDown) pitch = THREE.MathUtils.clamp(pitch - 1.5 * dt, -1.35, 1.35);
-      player.rotation.y = yaw;
-      camera.rotation.x = pitch;
-
-      const move = new THREE.Vector3();
-      if (keys.KeyW) move.z -= 1;
-      if (keys.KeyS) move.z += 1;
-      if (keys.KeyA) move.x -= 1;
-      if (keys.KeyD) move.x += 1;
-      if (move.lengthSq() > 0) {
-        move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        player.position.addScaledVector(move, speed);
-      }
-      clampPlayer();
-    }
-
-    function clampPlayer() {
-      player.position.x = THREE.MathUtils.clamp(player.position.x, -18.5, 18.5);
-      player.position.z = THREE.MathUtils.clamp(player.position.z, -16.5, 16.5);
-      player.position.y = 0;
-    }
-
-    // VR Controllers
-    const controllers = [];
-    for (let i = 0; i < 2; i++) {
-      const controller = renderer.xr.getController(i);
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -1)
-      ]);
-      const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
-      line.name = "ray";
-      line.scale.z = 5;
-      controller.add(line);
-
-      controller.addEventListener("selectstart", () => interactFromController(controller));
-      player.add(controller);
-      controllers.push(controller);
-    }
-
-    function interactFromController(controller) {
-      const tempMatrix = new THREE.Matrix4().identity().extractRotation(controller.matrixWorld);
-      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      if (hit?.object?.userData?.interaction) {
-        hit.object.userData.interaction();
-        punchObject(hit.object);
-      }
-    }
-
-    function updateVRMovement(dt) {
-      if (!renderer.xr.isPresenting) return;
-      const session = renderer.xr.getSession();
-      if (!session) return;
-
-      let moveX = 0, moveZ = 0, turnX = 0;
-      for (const source of session.inputSources) {
-        const gp = source.gamepad;
-        if (!gp) continue;
-        const axes = gp.axes;
-        const handed = source.handedness;
-
-        const ax = Math.abs(axes[2] ?? 0) > Math.abs(axes[0] ?? 0) ? (axes[2] ?? 0) : (axes[0] ?? 0);
-        const ay = Math.abs(axes[3] ?? 0) > Math.abs(axes[1] ?? 0) ? (axes[3] ?? 0) : (axes[1] ?? 0);
-
-        if (handed === "left") {
-          moveX = ax;
-          moveZ = ay;
-        } else if (handed === "right") {
-          turnX = ax;
-        }
-      }
-
-      const dead = .18;
-      if (Math.abs(moveX) < dead) moveX = 0;
-      if (Math.abs(moveZ) < dead) moveZ = 0;
-      if (moveX || moveZ) {
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion()));
-        forward.y = 0;
-        forward.normalize();
-        const right = new THREE.Vector3(forward.z, 0, -forward.x);
-        player.position.addScaledVector(forward, -moveZ * dt * 3.2);
-        player.position.addScaledVector(right, moveX * dt * 3.2);
-      }
-
-      const shouldTurn = Math.abs(turnX) > .72;
-      if (shouldTurn && !lastRightTurn) {
-        player.rotation.y -= Math.sign(turnX) * THREE.MathUtils.degToRad(30);
-        yaw = player.rotation.y;
-      }
-      lastRightTurn = shouldTurn;
-      clampPlayer();
-    }
-
-    function updateHover() {
-      if (renderer.xr.isPresenting) return;
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const hit = raycaster.intersectObjects(interactive, false)[0];
-      const next = hit?.object || null;
-      if (hovered !== next) {
-        if (hovered?.material?.emissive) hovered.material.emissive.setHex(0x000000);
-        hovered = next;
-        if (hovered?.material?.emissive) hovered.material.emissive.setHex(0x333333);
-      }
-    }
-
-    // VR startup and diagnostics
-    const vrStartButton = document.getElementById("vrStartButton");
-    const vrStatus = document.getElementById("vrStatus");
-    const openTabButton = document.getElementById("openTabButton");
-    let activeXRSession = null;
-
-    function setVRStatus(message, good = false) {
-      vrStatus.textContent = message;
-      vrStatus.style.color = good ? "#aaffbd" : "#ffe1a8";
-    }
-
-    async function checkVRSupport() {
-      vrStartButton.disabled = true;
-
-      if (!window.isSecureContext) {
-        setVRStatus(
-          `VR BLOCKED: this page is using ${location.protocol || "an insecure connection"}. ` +
-          "Upload index.html to an HTTPS site such as GitHub Pages, or run it on localhost."
-        );
-        vrStartButton.textContent = "HTTPS Required";
-        return;
-      }
-
-      if (!("xr" in navigator)) {
-        setVRStatus(
-          "WebXR is not available in this browser tab. Open the hosted game directly in your headset browser, not inside an embedded preview."
-        );
-        vrStartButton.textContent = "WebXR Unavailable";
-        return;
-      }
-
-      if (window.top !== window.self) {
-        setVRStatus(
-          "This game is embedded in another page. Embedded previews can block XR spatial tracking. Press “Open Game in New Tab”, then try VR again."
-        );
-      }
-
-      try {
-        const supported = await navigator.xr.isSessionSupported("immersive-vr");
-        if (!supported) {
-          setVRStatus(
-            "WebXR exists, but this tab cannot see an immersive VR headset. Open this HTTPS page in the headset browser, or connect/enable your PC VR runtime."
-          );
-          vrStartButton.textContent = "Headset Not Detected";
-          return;
-        }
-
-        vrStartButton.disabled = false;
-        vrStartButton.textContent = "Enter VR";
-        setVRStatus(
-          window.top !== window.self
-            ? "VR was detected, but the embedded page may still block it. A new tab is safer."
-            : "VR detected and ready. Press Enter VR.",
-          true
-        );
-      } catch (error) {
-        setVRStatus(`VR check failed: ${error.name || "Error"}: ${error.message || error}`);
-        vrStartButton.textContent = "VR Check Failed";
-      }
-    }
-
-    async function startVR() {
-      if (!navigator.xr || !window.isSecureContext) {
-        await checkVRSupport();
-        return;
-      }
-
-      vrStartButton.disabled = true;
-      vrStartButton.textContent = "Starting VR…";
-      setVRStatus("Requesting permission from the headset…", true);
-
-      try {
-        const session = await navigator.xr.requestSession("immersive-vr", {
-          requiredFeatures: ["local-floor"],
-          optionalFeatures: ["bounded-floor", "hand-tracking"]
-        });
-        activeXRSession = session;
-        await renderer.xr.setSession(session);
-
-        session.addEventListener("end", () => {
-          activeXRSession = null;
-          vrStartButton.textContent = "Enter VR";
-          vrStartButton.disabled = false;
-          setVRStatus("VR session ended. You can enter again.", true);
-        }, { once: true });
-      } catch (error) {
-        vrStartButton.disabled = false;
-        vrStartButton.textContent = "Try Enter VR Again";
-
-        let hint = "";
-        if (error.name === "SecurityError") {
-          hint = " Open the game directly in a new tab on an HTTPS site.";
-        } else if (error.name === "NotAllowedError") {
-          hint = " Allow the browser's VR/XR permission and press the button again.";
-        } else if (error.name === "NotSupportedError") {
-          hint = " The browser or headset runtime rejected immersive-vr or local-floor.";
-        } else if (error.name === "InvalidStateError") {
-          hint = " Another XR session may already be open.";
-        }
-
-        setVRStatus(`Could not enter VR: ${error.name || "Error"}: ${error.message || error}.${hint}`);
-      }
-    }
-
-    vrStartButton.addEventListener("click", startVR);
-    openTabButton.addEventListener("click", () => {
-      const opened = window.open(location.href, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        setVRStatus("The browser blocked the new tab. Use the browser menu and choose Open in new tab.");
-      }
-    });
-
-    renderer.xr.addEventListener("sessionstart", () => {
-      document.getElementById("startScreen").style.display = "none";
-      document.getElementById("crosshair").style.display = "none";
-      player.position.set(0, 0, 8);
-    });
-    renderer.xr.addEventListener("sessionend", () => {
-      document.getElementById("crosshair").style.display = "block";
-      document.getElementById("startScreen").style.display = "grid";
-    });
-
-    checkVRSupport();
-
-    document.getElementById("playButton").addEventListener("click", () => {
-      document.getElementById("startScreen").style.display = "none";
-      const lockAttempt = renderer.domElement.requestPointerLock?.();
-      if (lockAttempt?.catch) {
-        lockAttempt.catch(() => toast("Pointer lock was blocked. Hold right mouse and drag to look."));
-      }
-      setTimeout(() => {
-        if (document.pointerLockElement !== renderer.domElement) {
-          toast("Camera tip: click the game to lock the mouse, or hold right-click and drag.");
-        }
-      }, 700);
-    });
-
-    document.getElementById("resetButton").addEventListener("click", () => {
-      localStorage.removeItem("sproutSellVRSave");
-      state = structuredClone(defaultState);
-      for (const plot of plots) {
-        plot.crop = null;
-        plot.progress = 0;
-        plot.water = 0;
-        refreshPlotVisual(plot);
-      }
-      updateHUD();
-      toast("Save reset. Fresh soil, fresh wallet.");
-    });
-
-    addEventListener("resize", () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
-
-    updateHUD();
-
-    renderer.setAnimationLoop(() => {
-      const dt = Math.min(clock.getDelta(), .05);
-      updateDesktopMovement(dt);
-      updateVRMovement(dt);
-      updatePlots(dt);
-      updateParticles(dt);
-      updateHover();
-      updateHUD();
-      renderer.render(scene, camera);
-    });
-  </script>
-</body>
-</html>
